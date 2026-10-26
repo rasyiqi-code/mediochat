@@ -5,12 +5,16 @@ import {
   Mic, Radio, ShieldCheck
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
+import { useTaskStore } from '@/stores/useTaskStore';
 import { useDeviceStore } from '@/stores/useDeviceStore';
 import { useSettingStore } from '@/stores/useSettingStore';
+import { productionAudioRecorder } from '@/services/audio/recorder';
+import { aiClient } from '@/services/ai/client';
 
 const route = useRoute();
 const router = useRouter();
 const chatStore = useChatStore();
+const taskStore = useTaskStore();
 const deviceStore = useDeviceStore();
 const settingStore = useSettingStore();
 
@@ -22,11 +26,50 @@ const navItems = [
   { path: '/settings', label: 'Pengaturan', icon: Settings, badge: null },
 ];
 
-function togglePtt() {
+async function togglePtt() {
   if (chatStore.isRecording) {
     chatStore.stopRecording();
+    try {
+      const res = await productionAudioRecorder.stop();
+      if (res.transcript) {
+        const decomp = await aiClient.decomposeTask(res.transcript, settingStore.activeProvider);
+        const tasks = decomp.daftar_tugas.map((t, idx) => ({
+          id: `t-${Date.now()}-${idx}`,
+          divisi: t.divisi,
+          deskripsi: t.deskripsi,
+          prioritas: t.prioritas,
+          status: 'todo' as const,
+          deadline: decomp.tanggal_deadline || 'Besok',
+          senderName: 'Saya (Voice PTT)',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }));
+        for (const task of tasks) {
+          taskStore.addTask(task);
+        }
+        chatStore.addMessage({
+          id: `m-${Date.now()}`,
+          platform: 'local',
+          senderName: 'Saya (Voice PTT)',
+          senderId: 'self',
+          isSelf: true,
+          content: res.transcript,
+          messageType: 'voice_processed',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          transcription: res.transcript,
+          summary: decomp.ringkasan,
+          tasks,
+        });
+      }
+    } catch (e) {
+      console.warn('Voice PTT error:', e);
+    }
   } else {
     chatStore.startRecording();
+    try {
+      await productionAudioRecorder.start();
+    } catch (e) {
+      console.warn('Mic start error:', e);
+    }
   }
 }
 </script>
