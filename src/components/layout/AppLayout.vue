@@ -5,18 +5,17 @@ import {
   Mic, Radio, ShieldCheck
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
-import { useTaskStore } from '@/stores/useTaskStore';
 import { useDeviceStore } from '@/stores/useDeviceStore';
 import { useSettingStore } from '@/stores/useSettingStore';
 import { productionAudioRecorder } from '@/services/audio/recorder';
-import { aiClient } from '@/services/ai/client';
+import { useAICoordinator } from '@/composables/useAICoordinator';
 
 const route = useRoute();
 const router = useRouter();
 const chatStore = useChatStore();
-const taskStore = useTaskStore();
 const deviceStore = useDeviceStore();
 const settingStore = useSettingStore();
+const { processTaskDecomposition } = useAICoordinator();
 
 const navItems = [
   { path: '/chat', label: 'Chat Universal', icon: MessageSquare, badge: null },
@@ -32,33 +31,7 @@ async function togglePtt() {
     try {
       const res = await productionAudioRecorder.stop();
       if (res.transcript) {
-        const decomp = await aiClient.decomposeTask(res.transcript, settingStore.activeProvider);
-        const tasks = decomp.daftar_tugas.map((t, idx) => ({
-          id: `t-${Date.now()}-${idx}`,
-          divisi: t.divisi,
-          deskripsi: t.deskripsi,
-          prioritas: t.prioritas,
-          status: 'todo' as const,
-          deadline: decomp.tanggal_deadline || 'Besok',
-          senderName: 'Saya (Voice PTT)',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }));
-        for (const task of tasks) {
-          taskStore.addTask(task);
-        }
-        chatStore.addMessage({
-          id: `m-${Date.now()}`,
-          platform: 'local',
-          senderName: 'Saya (Voice PTT)',
-          senderId: 'self',
-          isSelf: true,
-          content: res.transcript,
-          messageType: 'voice_processed',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          transcription: res.transcript,
-          summary: decomp.ringkasan,
-          tasks,
-        });
+        await processTaskDecomposition(res.transcript, 'Saya (Voice PTT)', true);
       }
     } catch (e) {
       console.warn('Voice PTT error:', e);

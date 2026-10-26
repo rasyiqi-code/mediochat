@@ -4,95 +4,34 @@ import {
   Send, Sparkles, Clock, Mic, Square, Loader2, ArrowRight
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
-import { useTaskStore } from '@/stores/useTaskStore';
 import { useSettingStore } from '@/stores/useSettingStore';
-import { aiClient } from '@/services/ai/client';
 import { productionAudioRecorder } from '@/services/audio/recorder';
-import type { Division, TaskItem } from '@/types';
+import { useAICoordinator } from '@/composables/useAICoordinator';
+import { getDivisionBadge } from '@/lib/utils';
 
 const chatStore = useChatStore();
-const taskStore = useTaskStore();
 const settingStore = useSettingStore();
+const { isProcessing: isDecomposing, processTaskDecomposition, sendTextMessage } = useAICoordinator();
 
 const inputText = ref('');
-const isDecomposing = ref(false);
 const isRecording = ref(false);
 const recordingDuration = ref(0);
 const liveTranscript = ref('');
 let recordInterval: any = null;
 
-function getDivisionColor(divisi: Division) {
-  switch (divisi) {
-    case 'backend': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-    case 'frontend': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-    case 'desain': return 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30';
-    case 'qa': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    case 'devops': return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-    default: return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
-  }
-}
-
-function sendMessage() {
+function handleSend() {
   if (!inputText.value.trim()) return;
-
-  chatStore.addMessage({
-    id: `m-${Date.now()}`,
-    platform: 'local',
-    senderName: 'Saya (Local PC)',
-    senderId: 'self',
-    isSelf: true,
-    content: inputText.value,
-    messageType: 'text',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  });
-
+  sendTextMessage(inputText.value);
   inputText.value = '';
 }
 
 async function handleDecomposeWithAI() {
-  const text = inputText.value.trim();
-  if (!text) return;
-
-  isDecomposing.value = true;
+  if (!inputText.value.trim() || isDecomposing.value) return;
   try {
-    const result = await aiClient.decomposeTask(text, settingStore.activeProvider);
-
-    const generatedTasks: TaskItem[] = result.daftar_tugas.map((t, idx) => ({
-      id: `t-${Date.now()}-${idx}`,
-      divisi: t.divisi,
-      deskripsi: t.deskripsi,
-      prioritas: t.prioritas,
-      status: 'todo',
-      deadline: result.tanggal_deadline || 'Besok',
-      senderName: 'Saya (Voice/AI)',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }));
-
-    // 1. Add tasks to Kanban board
-    for (const task of generatedTasks) {
-      taskStore.addTask(task);
-    }
-
-    // 2. Add processed message to feed
-    chatStore.addMessage({
-      id: `m-${Date.now()}`,
-      platform: 'local',
-      senderName: 'Saya (Local PC)',
-      senderId: 'self',
-      isSelf: true,
-      content: text,
-      messageType: 'voice_processed',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      transcription: text,
-      summary: result.ringkasan,
-      tasks: generatedTasks,
-    });
-
+    await processTaskDecomposition(inputText.value, 'Saya (Local PC)', false);
     inputText.value = '';
   } catch (err: any) {
     console.error('Gagal dekomposisi:', err);
-  } finally {
-    isDecomposing.value = false;
   }
 }
 
@@ -234,7 +173,7 @@ async function stopMicRecording() {
               >
                 <div class="space-y-1.5">
                   <div class="flex items-center justify-between">
-                    <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionColor(task.divisi)]">
+                    <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionBadge(task.divisi)]">
                       {{ task.divisi }}
                     </span>
                     <span class="text-[10px] text-slate-400 flex items-center gap-1">
@@ -280,7 +219,7 @@ async function stopMicRecording() {
 
     <!-- Bottom Input Bar -->
     <div class="p-4 border-t border-slate-800/80 bg-slate-900/60 backdrop-blur-md">
-      <form @submit.prevent="sendMessage" class="flex items-center gap-2.5">
+      <form @submit.prevent="handleSend" class="flex items-center gap-2.5">
         <!-- Push to talk mic button -->
         <button
           type="button"

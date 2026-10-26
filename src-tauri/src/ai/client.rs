@@ -90,6 +90,24 @@ impl AIClient {
         clean
     }
 
+    fn normalize_base_url<'a>(&self, url: &'a str) -> &'a str {
+        url.trim().trim_end_matches('/')
+    }
+
+    fn build_chat_messages(&self, system_prompt: &str, user_prompt: &str) -> Value {
+        json!([
+            { "role": "system", "content": system_prompt },
+            { "role": "user", "content": user_prompt }
+        ])
+    }
+
+    fn extract_string_array(&self, arr: &[Value], key: &str) -> Vec<String> {
+        arr.iter()
+            .filter_map(|item| item.get(key).and_then(|v| v.as_str()))
+            .map(|s| s.to_string())
+            .collect()
+    }
+
     pub async fn chat_completion(
         &self,
         prompt: &str,
@@ -113,16 +131,14 @@ impl AIClient {
         system_prompt: &str,
         require_json: bool,
     ) -> Result<String, String> {
-        let base_url = provider.base_url.trim().trim_end_matches('/');
+        let base_url = self.normalize_base_url(&provider.base_url);
         let endpoint_native = format!("{}/api/chat", base_url);
         let headers = self.build_headers(provider);
+        let messages = self.build_chat_messages(system_prompt, prompt);
 
         let mut payload = json!({
             "model": provider.selected_model,
-            "messages": [
-                { "role": "system", "content": system_prompt },
-                { "role": "user", "content": prompt }
-            ],
+            "messages": messages.clone(),
             "stream": false
         });
 
@@ -150,10 +166,7 @@ impl AIClient {
         let endpoint_v1 = format!("{}/v1/chat/completions", base_url);
         let mut v1_payload = json!({
             "model": provider.selected_model,
-            "messages": [
-                { "role": "system", "content": system_prompt },
-                { "role": "user", "content": prompt }
-            ],
+            "messages": messages,
             "stream": false
         });
         if require_json {
@@ -248,19 +261,17 @@ impl AIClient {
         system_prompt: &str,
         require_json: bool,
     ) -> Result<String, String> {
-        let base_url = provider.base_url.trim().trim_end_matches('/');
+        let base_url = self.normalize_base_url(&provider.base_url);
         let mut endpoint = format!("{}/chat/completions", base_url);
         if base_url.ends_with("/chat/completions") {
             endpoint = base_url.to_string();
         }
 
         let headers = self.build_headers(provider);
+        let messages = self.build_chat_messages(system_prompt, prompt);
         let mut payload = json!({
             "model": provider.selected_model,
-            "messages": [
-                { "role": "system", "content": system_prompt },
-                { "role": "user", "content": prompt }
-            ],
+            "messages": messages,
             "stream": false
         });
 
@@ -303,7 +314,6 @@ impl AIClient {
         match serde_json::from_str::<TaskDecompositionResult>(clean_json) {
             Ok(res) => Ok(res),
             Err(e) => {
-                // Graceful fallback if model output failed strict JSON schema
                 eprintln!("JSON parse error on decomposition: {}. Raw: {}", e, raw_output);
                 Ok(TaskDecompositionResult {
                     ringkasan: if text.len() > 120 { format!("{}...", &text[..120]) } else { text.to_string() },
@@ -320,7 +330,7 @@ impl AIClient {
     }
 
     pub async fn fetch_models(&self, provider: &AIProviderConfig) -> Result<Vec<String>, String> {
-        let base_url = provider.base_url.trim().trim_end_matches('/');
+        let base_url = self.normalize_base_url(&provider.base_url);
         let headers = self.build_headers(provider);
 
         if provider.provider_type == "ollama" {
@@ -330,12 +340,7 @@ impl AIClient {
                 if res.status().is_success() {
                     if let Ok(val) = res.json::<Value>().await {
                         if let Some(arr) = val.get("models").and_then(|v| v.as_array()) {
-                            let mut list = Vec::new();
-                            for item in arr {
-                                if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                    list.push(name.to_string());
-                                }
-                            }
+                            let list = self.extract_string_array(arr, "name");
                             if !list.is_empty() {
                                 return Ok(list);
                             }
@@ -350,12 +355,7 @@ impl AIClient {
                 if res.status().is_success() {
                     if let Ok(val) = res.json::<Value>().await {
                         if let Some(arr) = val.get("data").and_then(|v| v.as_array()) {
-                            let mut list = Vec::new();
-                            for item in arr {
-                                if let Some(id) = item.get("id").and_then(|n| n.as_str()) {
-                                    list.push(id.to_string());
-                                }
-                            }
+                            let list = self.extract_string_array(arr, "id");
                             if !list.is_empty() {
                                 return Ok(list);
                             }
@@ -407,11 +407,10 @@ impl AIClient {
 
         let val: Value = res.json().await.map_err(|e| e.to_string())?;
         if let Some(arr) = val.get("data").and_then(|v| v.as_array()) {
-            let list: Vec<String> = arr.iter()
-                .filter_map(|m| m.get("id").and_then(|i| i.as_str()))
-                .map(|s| s.to_string())
-                .collect();
-            return Ok(list);
+            let list = self.extract_string_array(arr, "id");
+            if !list.is_empty() {
+                return Ok(list);
+            }
         }
 
         Err("Format response list models tidak dikenali".to_string())
