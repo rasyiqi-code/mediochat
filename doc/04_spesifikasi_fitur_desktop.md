@@ -64,7 +64,7 @@ Sistem multi-user didesain agar AI Coordinator mengenali personil di dalam organ
       - *Penugasan/instruksi*: `"@Dimas Wicaksono, si Andi minta kamu siapkan UI-nya nih sebelum besok."`
       - *Update/kabar*: `"Halo tim! Si Andi bilang gini: Server staging sudah siap diuji ya."`
       - *Sapaan casual*: `"Halo Mas Andi! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?"`
-    - Disertai kartu tugas Kanban ringkas di bawah balon percakapan (`[DESAIN] Siapkan UI-nya ➔ Dimas Wicaksono [Buka Board →]`).
+    - Tampilan bubble chat bersih dan fokus pada percakapan (tanpa kartu tugas yang mengaburkan pesan), sementara seluruh aksi tugas langsung terpusat rapi di halaman Kanban Board (`/board`).
 * **Manajemen Feed Bersih**:
   - Tombol hapus satuan pada setiap bubble pesan (muncul saat *hover*).
   - Tombol **Bersihkan Feed** di header untuk mereset seluruh riwayat obrolan kapan saja.

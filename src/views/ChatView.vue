@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  Sparkles, Mic, Square, Loader2, ArrowRight, MessageSquare, 
+  Sparkles, Mic, Square, Loader2, MessageSquare, 
   Trash2, Bot, CheckCheck, Send
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
@@ -9,7 +9,6 @@ import { useSettingStore } from '@/stores/useSettingStore';
 import { useStakeholderStore } from '@/stores/useStakeholderStore';
 import { productionAudioRecorder } from '@/services/audio/recorder';
 import { useAICoordinator } from '@/composables/useAICoordinator';
-import { getDivisionBadge } from '@/lib/utils';
 
 const chatStore = useChatStore();
 const settingStore = useSettingStore();
@@ -249,43 +248,7 @@ function cleanBriefingText(briefing?: string, content?: string): string {
                   <span class="italic text-slate-400 truncate max-w-sm">"{{ msg.content }}"</span>
                 </p>
 
-                <!-- Actionable Kanban Tasks Card if decomposed -->
-                <div
-                  v-if="msg.tasks && msg.tasks.length"
-                  class="mt-2.5 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-1.5"
-                >
-                  <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium px-0.5">
-                    <span class="flex items-center gap-1.5 text-violet-400">
-                      <Sparkles class="h-3 w-3" />
-                      <span>{{ msg.tasks.length }} tugas dicatat ke Kanban:</span>
-                    </span>
-                    <router-link
-                      to="/board"
-                      class="text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-0.5 transition-colors"
-                    >
-                      <span>Buka Board</span>
-                      <ArrowRight class="h-2.5 w-2.5" />
-                    </router-link>
-                  </div>
 
-                  <div class="space-y-1">
-                    <div
-                      v-for="task in msg.tasks"
-                      :key="task.id"
-                      class="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-slate-800/60"
-                    >
-                      <div class="flex items-center gap-2 truncate">
-                        <span :class="['text-[8px] font-bold uppercase px-1.5 py-0.2 rounded border flex-shrink-0', getDivisionBadge(task.divisi)]">
-                          {{ task.divisi }}
-                        </span>
-                        <span class="text-slate-200 truncate font-medium">{{ task.deskripsi }}</span>
-                      </div>
-                      <span class="text-[10px] text-emerald-400 font-semibold flex-shrink-0 ml-3">
-                        → {{ task.assigneeName || 'Tim' }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <!-- Delete button on incoming bubble if not self -->
