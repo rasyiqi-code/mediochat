@@ -52,13 +52,13 @@ async fn ai_test_connection(
 }
 
 #[tauri::command]
-async fn get_lan_peers(state: State<'_, AppState>) -> Result<Vec<PeerDevice>, String> {
-    Ok(state.peer_service.get_peers().await)
+fn get_lan_peers(state: State<'_, AppState>) -> Result<Vec<PeerDevice>, String> {
+    Ok(state.peer_service.get_peers())
 }
 
 #[tauri::command]
-async fn broadcast_lan_presence(state: State<'_, AppState>) -> Result<(), String> {
-    state.peer_service.broadcast_presence().await
+fn broadcast_lan_presence(state: State<'_, AppState>) -> Result<(), String> {
+    state.peer_service.broadcast_presence()
 }
 
 #[tauri::command]
