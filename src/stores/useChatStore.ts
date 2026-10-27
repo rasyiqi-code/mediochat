@@ -10,15 +10,39 @@ export const useChatStore = defineStore('chat', () => {
       const raw = localStorage.getItem(STORAGE_CHAT_KEY);
       if (!raw) return [];
       const parsed: ChatMessage[] = JSON.parse(raw);
-      // Auto-purge any leftover legacy dummy messages
-      const cleaned = parsed.filter(
-        (m) =>
-          m.id !== 'm1' &&
-          m.id !== 'm2' &&
-          !m.senderName.includes('Andi (Backend') &&
-          !m.senderName.includes('Budi (Project')
-      );
-      if (cleaned.length !== parsed.length) {
+      // Auto-purge any leftover legacy dummy messages and sanitize formatting
+      const cleaned = parsed
+        .filter(
+          (m) =>
+            m.id !== 'm1' &&
+            m.id !== 'm2' &&
+            !m.senderName.includes('Andi (Backend') &&
+            !m.senderName.includes('Budi (Project')
+        )
+        .map((m) => {
+          let cleanName = m.senderName || 'Rekan Tim';
+          let cleanRole = m.senderRole || '';
+          // If senderName contains parentheses like "Andi Pratama (Principal Backend Engineer)"
+          const roleMatch = cleanName.match(/\(([^)]+)\)/);
+          if (roleMatch) {
+            if (!cleanRole) cleanRole = roleMatch[1].trim();
+            cleanName = cleanName.replace(/\s*\([^)]*\)/g, '').trim();
+          }
+
+          let cleanBriefing = (m.aiRelayBriefing || m.content || '').trim().replace(/^["']|["']$/g, '').trim();
+          if (cleanBriefing.toLowerCase() === 'halo' || cleanBriefing.toLowerCase() === 'hai') {
+            cleanBriefing = `${cleanName} menyapa tim: Halo!`;
+          }
+
+          return {
+            ...m,
+            senderName: cleanName,
+            senderRole: cleanRole,
+            aiRelayBriefing: cleanBriefing,
+          };
+        });
+
+      if (JSON.stringify(cleaned) !== raw) {
         localStorage.setItem(STORAGE_CHAT_KEY, JSON.stringify(cleaned));
       }
       return cleaned;

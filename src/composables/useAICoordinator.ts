@@ -32,55 +32,70 @@ export function useAICoordinator() {
     try {
       const activeProvider = settingStore.activeProvider;
       const current = stakeholderStore.currentUser;
-      const actualSender = senderSource || `${current.name} (${current.role})`;
+      const cleanSender = senderSource
+        ? senderSource.replace(/\s*\([^)]*\)/g, '').trim()
+        : current.name;
+      const senderDisplayName = cleanSender || current.name;
+      const senderRole = current.role;
+      const senderWithRole = `${senderDisplayName} (${senderRole})`;
+
+      const lowerText = text.toLowerCase().trim();
+      const isCasual = ['halo', 'hai', 'pagi', 'selamat pagi', 'siang', 'malam', 'tes', 'test', 'ping'].includes(lowerText);
 
       // 1. Send to AI with Stakeholder Directory and Sender Identity
       const result = await aiClient.decomposeTask(
         text,
         activeProvider,
         stakeholderStore.stakeholders,
-        actualSender
+        senderWithRole
       );
 
       const timestamp = formatTime();
 
-      // 2. Map Decomposed Tasks with Stakeholders
-      const generatedTasks: TaskItem[] = (result.daftar_tugas || []).map((t, idx) => {
-        let matchedStakeholder = t.assignee_name
-          ? stakeholderStore.findStakeholderByName(t.assignee_name)
-          : undefined;
+      // 2. Map Decomposed Tasks with Stakeholders (skip fake tasks if casual greeting)
+      const generatedTasks: TaskItem[] = isCasual
+        ? []
+        : (result.daftar_tugas || []).map((t, idx) => {
+            let matchedStakeholder = t.assignee_name
+              ? stakeholderStore.findStakeholderByName(t.assignee_name)
+              : undefined;
 
-        if (!matchedStakeholder) {
-          const candidates = stakeholderStore.findStakeholdersByDivision(t.divisi);
-          if (candidates.length > 0) {
-            matchedStakeholder = candidates[0];
-          }
-        }
+            if (!matchedStakeholder) {
+              const candidates = stakeholderStore.findStakeholdersByDivision(t.divisi);
+              if (candidates.length > 0) {
+                matchedStakeholder = candidates[0];
+              }
+            }
 
-        return {
-          id: `t-${Date.now()}-${idx}`,
-          divisi: t.divisi,
-          deskripsi: t.deskripsi,
-          prioritas: t.prioritas,
-          status: 'todo' as const,
-          deadline: result.tanggal_deadline || 'Besok',
-          senderName: actualSender,
-          timestamp,
-          assigneeName: t.assignee_name || matchedStakeholder?.name || 'Belum Ditugaskan',
-          assigneeRole: t.assignee_role || matchedStakeholder?.role || '',
-          assigneeId: matchedStakeholder?.id,
-        };
-      });
+            return {
+              id: `t-${Date.now()}-${idx}`,
+              divisi: t.divisi,
+              deskripsi: t.deskripsi,
+              prioritas: t.prioritas,
+              status: 'todo' as const,
+              deadline: result.tanggal_deadline || 'Besok',
+              senderName: senderDisplayName,
+              timestamp,
+              assigneeName: t.assignee_name || matchedStakeholder?.name || 'Belum Ditugaskan',
+              assigneeRole: t.assignee_role || matchedStakeholder?.role || '',
+              assigneeId: matchedStakeholder?.id,
+            };
+          });
 
       // 3. Add tasks to Kanban board
       for (const task of generatedTasks) {
         taskStore.addTask(task);
       }
 
-      // 4. Default AI Relay briefing if AI did not provide one
-      const aiRelayBriefing =
-        result.ai_relay_briefing ||
-        `${actualSender} menyampaikan: "${text}"`;
+      // 4. Natural AI Relay briefing
+      let aiRelayBriefing = text.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+      if (isCasual) {
+        aiRelayBriefing = `${senderDisplayName} menyapa tim: Halo!`;
+      } else if (result.ai_relay_briefing && result.ai_relay_briefing.trim()) {
+        aiRelayBriefing = result.ai_relay_briefing.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+      } else if (text.length > 30) {
+        aiRelayBriefing = `${senderDisplayName} (${senderRole}) mengabarkan: ${text}`;
+      }
 
       const messageId = `m-${Date.now()}`;
 
@@ -88,7 +103,7 @@ export function useAICoordinator() {
       chatStore.addMessage({
         id: messageId,
         platform: 'local',
-        senderName: actualSender,
+        senderName: senderDisplayName,
         senderId: current.id,
         senderRole: current.role,
         senderDivision: current.division,
@@ -110,7 +125,7 @@ export function useAICoordinator() {
       transport.broadcastMessage({
         id: messageId,
         senderId: current.id,
-        senderName: actualSender,
+        senderName: senderDisplayName,
         type: 'task_update',
         payload: {
           aiRelayBriefing,

@@ -34,7 +34,7 @@ async function togglePtt() {
     try {
       const res = await productionAudioRecorder.stop();
       if (res.transcript) {
-        await processTaskDecomposition(res.transcript, `${stakeholderStore.currentUser.name} (Voice PTT)`, true);
+        await processTaskDecomposition(res.transcript, stakeholderStore.currentUser.name, true);
       }
     } catch (e) {
       console.warn('Voice PTT error:', e);
