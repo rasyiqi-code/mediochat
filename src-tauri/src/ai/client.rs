@@ -375,42 +375,161 @@ impl AIClient {
             }
             Err(e) => {
                 eprintln!("JSON parse error on decomposition: {}. Raw: {}", e, raw_output);
-                let sender = sender_name.unwrap_or("Rekan tim");
-                let clean_text = text.trim().trim_matches('"').trim_matches('\'');
-                let is_casual = clean_text.len() <= 10 && (
-                    clean_text.eq_ignore_ascii_case("halo") ||
-                    clean_text.eq_ignore_ascii_case("pagi") ||
-                    clean_text.eq_ignore_ascii_case("selamat pagi") ||
-                    clean_text.eq_ignore_ascii_case("hai") ||
-                    clean_text.eq_ignore_ascii_case("tes")
-                );
+                let raw_sender = sender_name.unwrap_or("Rekan Tim");
+                let clean_sender = raw_sender.split('(').next().unwrap_or(raw_sender).trim();
+                let clean_text = text.trim().trim_matches('"').trim_matches('\'').trim();
+                let lower = clean_text.to_lowercase();
 
-                let fallback_briefing = if is_casual {
-                    format!("{} menyapa tim: Halo!", sender)
-                } else if let Some(s) = sender_name {
-                    format!("{} menginformasikan: {}", s, clean_text)
+                // 1. Casual Greetings
+                let is_casual = lower == "halo"
+                    || lower == "hai"
+                    || lower == "pagi"
+                    || lower == "selamat pagi"
+                    || lower == "siang"
+                    || lower == "sore"
+                    || lower == "malam"
+                    || lower == "tes"
+                    || lower == "ping";
+
+                if is_casual {
+                    return Ok(TaskDecompositionResult {
+                        ringkasan: "Sapaan tim".to_string(),
+                        tanggal_deadline: None,
+                        daftar_tugas: vec![],
+                        ai_relay_briefing: Some(format!("{} menyapa tim: Halo!", clean_sender)),
+                        intent_type: Some("general_info".to_string()),
+                        target_stakeholders: Some(vec!["Semua Tim".to_string()]),
+                        urgency: Some("santai".to_string()),
+                    });
+                }
+
+                // 2. Identify Target Stakeholder from team directory
+                let mut target_stakeholder: Option<&Stakeholder> = None;
+                if let Some(team) = stakeholders {
+                    for s in team {
+                        let s_name_lower = s.name.to_lowercase();
+                        let parts: Vec<&str> = s_name_lower.split_whitespace().collect();
+                        let joined = parts.join("");
+
+                        if lower.contains(&s_name_lower)
+                            || lower.contains(&joined)
+                            || parts.first().map(|p| lower.contains(p)).unwrap_or(false)
+                        {
+                            target_stakeholder = Some(s);
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Match Division Keywords
+                let matched_division = if lower.contains("desain") || lower.contains("ui") || lower.contains("ux") || lower.contains("figma") || lower.contains("mockup") {
+                    "desain"
+                } else if lower.contains("backend") || lower.contains("api") || lower.contains("database") || lower.contains("db") || lower.contains("sql") || lower.contains("postgres") {
+                    "backend"
+                } else if lower.contains("frontend") || lower.contains("vue") || lower.contains("react") || lower.contains("css") || lower.contains("halaman") || lower.contains("tampilan") {
+                    "frontend"
+                } else if lower.contains("devops") || lower.contains("deploy") || lower.contains("docker") || lower.contains("server") {
+                    "devops"
+                } else if lower.contains("qa") || lower.contains("test") || lower.contains("testing") || lower.contains("audit") || lower.contains("bug") {
+                    "qa"
+                } else if let Some(target) = target_stakeholder {
+                    target.division.as_str()
                 } else {
-                    format!("Pesan dari tim: {}", clean_text)
+                    "general"
+                };
+
+                // If target stakeholder not found yet, pick from matched division
+                let final_target = target_stakeholder.or_else(|| {
+                    stakeholders.and_then(|team| team.iter().find(|s| s.division == matched_division))
+                });
+
+                // 4. Action verb detection
+                let action_verbs = [
+                    "tolong", "minta", "siapkan", "buat", "buatkan", "kerjakan",
+                    "selesaikan", "update", "perbarui", "bantu", "perbaiki", "fix",
+                    "deploy", "test", "uji", "cek", "kirim", "ekspor", "dump", "butuh", "perlu"
+                ];
+                let has_action_verb = action_verbs.iter().any(|v| lower.contains(v));
+
+                // If only mentioning someone's name without action verbs
+                if !has_action_verb && final_target.is_some() && lower.split_whitespace().count() <= 4 {
+                    let target = final_target.unwrap();
+                    return Ok(TaskDecompositionResult {
+                        ringkasan: format!("Panggilan personil @{}", target.name),
+                        tanggal_deadline: None,
+                        daftar_tugas: vec![],
+                        ai_relay_briefing: Some(format!("{} memanggil @{}.", clean_sender, target.name)),
+                        intent_type: Some("general_info".to_string()),
+                        target_stakeholders: Some(vec![target.name.clone()]),
+                        urgency: Some("normal".to_string()),
+                    });
+                }
+
+                // Clean action description
+                let mut clean_action = clean_text.to_string();
+                if let Some(target) = final_target {
+                    let target_name_lower = target.name.to_lowercase();
+                    let parts: Vec<&str> = target_name_lower.split_whitespace().collect();
+                    let joined = parts.join("");
+                    clean_action = clean_action
+                        .replace(&format!("tolong {}", target.name), "")
+                        .replace(&format!("tolong {}", joined), "")
+                        .replace(&format!("tolong {}", parts.first().unwrap_or(&"")), "")
+                        .replace("tolong", "")
+                        .replace("minta tolong", "")
+                        .trim()
+                        .to_string();
+                } else {
+                    clean_action = clean_action.replace("tolong", "").trim().to_string();
+                }
+
+                if clean_action.is_empty() {
+                    clean_action = clean_text.to_string();
+                }
+
+                let mut chars = clean_action.chars();
+                clean_action = match chars.next() {
+                    None => String::new(),
+                    Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+                };
+
+                let target_name = final_target.map(|t| t.name.clone()).unwrap_or_else(|| "Tim".to_string());
+                let target_role = final_target.map(|t| t.role.clone());
+
+                let briefing = if let Some(target) = final_target {
+                    if lower.contains("butuh") {
+                        format!("{} membutuhkan bantuan dari @{}: {}.", clean_sender, target.name, clean_action)
+                    } else {
+                        format!("{} meminta tolong kepada @{} untuk {}.", clean_sender, target.name, clean_action.to_lowercase())
+                    }
+                } else {
+                    format!("{} menyampaikan instruksi ke tim: {}.", clean_sender, clean_action)
+                };
+
+                let tasks = if has_action_verb {
+                    vec![TaskDecompositionItem {
+                        divisi: matched_division.to_string(),
+                        deskripsi: clean_action.clone(),
+                        prioritas: if lower.contains("urgent") || lower.contains("segera") || lower.contains("asap") {
+                            "tinggi".to_string()
+                        } else {
+                            "sedang".to_string()
+                        },
+                        estimasi_jam: Some(3),
+                        assignee_name: Some(target_name.clone()),
+                        assignee_role: target_role,
+                    }]
+                } else {
+                    vec![]
                 };
 
                 Ok(TaskDecompositionResult {
-                    ringkasan: if text.len() > 120 { format!("{}...", &text[..120]) } else { clean_text.to_string() },
-                    tanggal_deadline: if is_casual { None } else { Some("Besok".to_string()) },
-                    daftar_tugas: if is_casual {
-                        vec![]
-                    } else {
-                        vec![TaskDecompositionItem {
-                            divisi: "general".to_string(),
-                            deskripsi: clean_text.to_string(),
-                            prioritas: "sedang".to_string(),
-                            estimasi_jam: Some(2),
-                            assignee_name: None,
-                            assignee_role: None,
-                        }]
-                    },
-                    ai_relay_briefing: Some(fallback_briefing),
-                    intent_type: Some(if is_casual { "general_info".to_string() } else { "task_instruction".to_string() }),
-                    target_stakeholders: Some(vec!["Semua Tim".to_string()]),
+                    ringkasan: clean_action,
+                    tanggal_deadline: Some("Besok".to_string()),
+                    daftar_tugas: tasks,
+                    ai_relay_briefing: Some(briefing),
+                    intent_type: Some(if lower.contains("butuh") { "request_data".to_string() } else { "task_instruction".to_string() }),
+                    target_stakeholders: Some(vec![target_name]),
                     urgency: Some("normal".to_string()),
                 })
             }

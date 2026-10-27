@@ -5,6 +5,7 @@ import type {
 } from './types';
 import type { Stakeholder } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
+import { decomposeLocally } from './localDecomposer';
 
 const SYSTEM_DECOMPOSITION_PROMPT = `Anda adalah AI Relay & Executive Coordinator untuk sistem MedioChat (Team AI Bridge).
 PRINSIP UTAMA: Komunikasi di MedioChat BUKAN Human-to-Human langsung, melainkan HUMAN -> AI -> HUMAN.
@@ -153,33 +154,16 @@ export class UniversalAIClient {
       if (!parsed.daftar_tugas || !Array.isArray(parsed.daftar_tugas)) {
         throw new Error('Format daftar_tugas tidak valid');
       }
+      const cleanSender = (senderName || 'Rekan Tim').replace(/\s*\([^)]*\)/g, '').trim();
       if (!parsed.ai_relay_briefing) {
-        parsed.ai_relay_briefing = senderName
-          ? `${senderName} menyampaikan: "${text}"`
-          : `Pesan masuk dari tim: "${text}"`;
+        parsed.ai_relay_briefing = `${cleanSender} mengabarkan: ${text}`;
+      } else {
+        parsed.ai_relay_briefing = parsed.ai_relay_briefing.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
       }
       return parsed;
     } catch (err: any) {
-      console.warn('AI Task Decomposition fallback triggered:', err);
-      const fallbackBriefing = senderName
-        ? `${senderName} menginformasikan: "${text}"`
-        : `Pesan dari tim: "${text}"`;
-      return {
-        ringkasan: text.slice(0, 120) + (text.length > 120 ? '...' : ''),
-        tanggal_deadline: 'Besok',
-        daftar_tugas: [
-          {
-            divisi: 'general',
-            deskripsi: text,
-            prioritas: 'sedang',
-            estimasi_jam: 2,
-          },
-        ],
-        ai_relay_briefing: fallbackBriefing,
-        intent_type: 'general_info',
-        target_stakeholders: ['Semua Tim'],
-        urgency: 'normal',
-      };
+      console.warn('AI Task Decomposition using intelligent local engine:', err);
+      return decomposeLocally(text, senderName || 'Rekan Tim', stakeholders || []);
     }
   }
 

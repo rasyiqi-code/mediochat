@@ -102,6 +102,13 @@ function cleanSenderRole(role?: string, name?: string): string {
 
 function cleanBriefingText(briefing?: string, content?: string): string {
   let text = (briefing || content || '').trim();
+  // Strip robotic role prefix pattern if previously saved e.g. "Andi Pratama (Principal Backend Engineer) menginformasikan: "
+  const prefixMatch = text.match(/^([A-Za-z\s]+)\s*\([^)]*\)\s*(?:menginformasikan|mengabarkan):\s*["']?(.*)$/i);
+  if (prefixMatch) {
+    const sender = prefixMatch[1].trim();
+    const rest = prefixMatch[2].replace(/["']$/g, '').trim();
+    text = `${sender} mengabarkan: ${rest}`;
+  }
   text = text.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
   if (text.toLowerCase() === 'halo' || text.toLowerCase() === 'hai') {
     return 'Halo tim! Ada update apa untuk sprint hari ini?';

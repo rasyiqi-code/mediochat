@@ -36,8 +36,6 @@ export function useAICoordinator() {
         ? senderSource.replace(/\s*\([^)]*\)/g, '').trim()
         : current.name;
       const senderDisplayName = cleanSender || current.name;
-      const senderRole = current.role;
-      const senderWithRole = `${senderDisplayName} (${senderRole})`;
 
       const lowerText = text.toLowerCase().trim();
       const isCasual = ['halo', 'hai', 'pagi', 'selamat pagi', 'siang', 'malam', 'tes', 'test', 'ping'].includes(lowerText);
@@ -47,12 +45,12 @@ export function useAICoordinator() {
         text,
         activeProvider,
         stakeholderStore.stakeholders,
-        senderWithRole
+        senderDisplayName
       );
 
       const timestamp = formatTime();
 
-      // 2. Map Decomposed Tasks with Stakeholders (skip fake tasks if casual greeting)
+      // 2. Map Decomposed Tasks with Stakeholders (skip fake tasks if casual greeting or no tasks)
       const generatedTasks: TaskItem[] = isCasual
         ? []
         : (result.daftar_tugas || []).map((t, idx) => {
@@ -93,8 +91,10 @@ export function useAICoordinator() {
         aiRelayBriefing = `${senderDisplayName} menyapa tim: Halo!`;
       } else if (result.ai_relay_briefing && result.ai_relay_briefing.trim()) {
         aiRelayBriefing = result.ai_relay_briefing.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
-      } else if (text.length > 30) {
-        aiRelayBriefing = `${senderDisplayName} (${senderRole}) mengabarkan: ${text}`;
+        // Remove duplicate role parentheses e.g. "Andi Pratama (Principal Backend Engineer) menginformasikan:"
+        aiRelayBriefing = aiRelayBriefing.replace(/\s*\([^)]*\)\s*(menginformasikan|mengabarkan):/g, ' $1:');
+      } else {
+        aiRelayBriefing = `${senderDisplayName} mengabarkan: ${text}`;
       }
 
       const messageId = `m-${Date.now()}`;

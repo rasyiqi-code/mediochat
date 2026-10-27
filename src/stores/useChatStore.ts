@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { ChatMessage } from '@/types';
+import { decomposeLocally } from '@/services/ai/localDecomposer';
+import { DEFAULT_STAKEHOLDERS } from '@/stores/useStakeholderStore';
 
 const STORAGE_CHAT_KEY = 'mediochat_messages_v1';
 
@@ -29,7 +31,41 @@ export const useChatStore = defineStore('chat', () => {
             cleanName = cleanName.replace(/\s*\([^)]*\)/g, '').trim();
           }
 
-          let cleanBriefing = (m.aiRelayBriefing || m.content || '').trim().replace(/^["']|["']$/g, '').trim();
+          let cleanBriefing = (m.aiRelayBriefing || m.content || '').trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+
+          // Auto-remediate any leftover robotic fallback messages from previous versions
+          if (
+            cleanBriefing.includes('menginformasikan:') ||
+            cleanBriefing.includes('(') ||
+            cleanBriefing.includes('"') ||
+            (m.tasks && m.tasks.some(t => t.assigneeName === 'Budi Santoso' && (m.content || '').toLowerCase().includes('dimas')))
+          ) {
+            const reResult = decomposeLocally(m.content || cleanBriefing, cleanName, DEFAULT_STAKEHOLDERS);
+            cleanBriefing = reResult.ai_relay_briefing || cleanBriefing;
+            const updatedTasks = reResult.daftar_tugas.map((t, idx) => ({
+              id: m.tasks?.[idx]?.id || `t-migrated-${m.id}-${idx}`,
+              divisi: t.divisi,
+              deskripsi: t.deskripsi,
+              prioritas: t.prioritas,
+              status: 'todo' as const,
+              deadline: reResult.tanggal_deadline || 'Besok',
+              senderName: cleanName,
+              timestamp: m.timestamp,
+              assigneeName: t.assignee_name || 'Tim',
+              assigneeRole: t.assignee_role || '',
+            }));
+
+            return {
+              ...m,
+              senderName: cleanName,
+              senderRole: cleanRole,
+              aiRelayBriefing: cleanBriefing,
+              intentType: reResult.intent_type || m.intentType,
+              targetStakeholders: reResult.target_stakeholders || m.targetStakeholders,
+              tasks: updatedTasks,
+            };
+          }
+
           if (cleanBriefing.toLowerCase() === 'halo' || cleanBriefing.toLowerCase() === 'hai') {
             cleanBriefing = `${cleanName} menyapa tim: Halo!`;
           }

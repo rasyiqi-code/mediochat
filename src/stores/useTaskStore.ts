@@ -10,14 +10,33 @@ export const useTaskStore = defineStore('task', () => {
       const raw = localStorage.getItem(STORAGE_TASK_KEY);
       if (!raw) return [];
       const parsed: TaskItem[] = JSON.parse(raw);
-      // Auto-purge any leftover legacy dummy tasks
-      const cleaned = parsed.filter(
-        (t) =>
-          !['t-1', 't-2', 't-3', 't-4'].includes(t.id) &&
-          t.senderName !== 'Budi (PM)' &&
-          t.senderName !== 'Andi (Lead)' &&
-          t.senderName !== 'Citra (Designer)'
-      );
+      // Auto-purge legacy dummy tasks and fake non-task name mentions
+      const cleaned = parsed
+        .filter(
+          (t) =>
+            !['t-1', 't-2', 't-3', 't-4'].includes(t.id) &&
+            t.senderName !== 'Budi (PM)' &&
+            t.senderName !== 'Andi (Lead)' &&
+            t.senderName !== 'Citra (Designer)' &&
+            // Purge tasks that are merely a person's name without any action verb
+            t.deskripsi.trim().toLowerCase() !== 'dimas wicaksono'
+        )
+        .map((t) => {
+          // Remap misassigned task from previous fallback
+          if (
+            t.deskripsi.toLowerCase().includes('dimaswicaksono') &&
+            t.deskripsi.toLowerCase().includes('desain')
+          ) {
+            return {
+              ...t,
+              divisi: 'desain' as const,
+              deskripsi: 'Siapkan desain UI',
+              assigneeName: 'Dimas Wicaksono',
+              assigneeRole: 'Lead UI/UX & Product Designer',
+            };
+          }
+          return t;
+        });
       if (cleaned.length !== parsed.length) {
         localStorage.setItem(STORAGE_TASK_KEY, JSON.stringify(cleaned));
       }
