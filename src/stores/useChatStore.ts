@@ -33,11 +33,14 @@ export const useChatStore = defineStore('chat', () => {
 
           let cleanBriefing = (m.aiRelayBriefing || m.content || '').trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
 
-          // Auto-remediate any leftover robotic fallback messages from previous versions
+          // Auto-remediate any leftover robotic fallback messages or previous 3rd-person phrasing
           if (
             cleanBriefing.includes('menginformasikan:') ||
+            cleanBriefing.includes('meminta tolong kepada') ||
+            cleanBriefing.includes('siapakn') ||
             cleanBriefing.includes('(') ||
             cleanBriefing.includes('"') ||
+            cleanBriefing.toLowerCase() === 'halo' ||
             (m.tasks && m.tasks.some(t => t.assigneeName === 'Budi Santoso' && (m.content || '').toLowerCase().includes('dimas')))
           ) {
             const reResult = decomposeLocally(m.content || cleanBriefing, cleanName, DEFAULT_STAKEHOLDERS);

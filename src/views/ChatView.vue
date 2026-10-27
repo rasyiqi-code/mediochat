@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { 
   Sparkles, Mic, Square, Loader2, ArrowRight, MessageSquare, 
-  Trash2, Bot, Send
+  Trash2, Bot
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
 import { useSettingStore } from '@/stores/useSettingStore';
@@ -115,6 +115,17 @@ function cleanBriefingText(briefing?: string, content?: string): string {
   }
   return text;
 }
+
+function getTargetLabel(msg: any): string | null {
+  if (msg.targetStakeholders && msg.targetStakeholders.length > 0) {
+    const list = msg.targetStakeholders.filter((s: string) => s !== 'Semua Tim');
+    if (list.length > 0) return list.join(', ');
+  }
+  if (msg.tasks && msg.tasks.length > 0 && msg.tasks[0].assigneeName && msg.tasks[0].assigneeName !== 'Tim') {
+    return msg.tasks[0].assigneeName;
+  }
+  return null;
+}
 </script>
 
 <template>
@@ -184,52 +195,57 @@ function cleanBriefingText(briefing?: string, content?: string): string {
         </p>
       </div>
 
-      <!-- Natural Conversation Feed -->
+      <!-- Natural Conversation Feed: AI Coordinator as the Messenger -->
       <div
         v-for="msg in chatStore.messages"
         :key="msg.id"
         class="flex items-start gap-3.5 p-4 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/60 hover:border-slate-800 transition-all group max-w-3xl mx-auto w-full"
       >
-        <!-- Sender Avatar -->
+        <!-- Messenger Avatar: MedioAI Coordinator with smart purple glow -->
         <div class="relative flex-shrink-0 mt-0.5">
-          <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-violet-600/20">
-            {{ cleanSenderName(msg.senderName).slice(0, 2).toUpperCase() }}
+          <div class="h-10 w-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-violet-600/25">
+            <Bot class="h-5 w-5 text-white" />
           </div>
           <div
-            v-if="msg.messageType === 'ai_mediated' || msg.aiRelayBriefing"
             class="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center"
-            title="Dikoordinasikan oleh AI Relay"
+            title="MedioAI Coordinator"
           >
             <Sparkles class="h-2.5 w-2.5 text-violet-400" />
           </div>
         </div>
 
         <!-- Message Body -->
-        <div class="flex-1 min-w-0 space-y-2">
-          <!-- Header Line: Name, Role Pill, Timestamp, Intent, Delete -->
+        <div class="flex-1 min-w-0 space-y-1.5">
+          <!-- Header Line: MedioAI Coordinator • Meneruskan dari [Sender] ➔ [Target] • Time • Intent -->
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 flex-wrap min-w-0">
-              <span class="text-xs font-bold text-slate-100 truncate">
-                {{ cleanSenderName(msg.senderName) }}
+            <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span class="text-xs font-bold text-white flex items-center gap-1">
+                <span>MedioAI</span>
+                <span class="text-[10px] text-violet-400/90 font-mono font-medium">Coordinator</span>
               </span>
-              <span
-                v-if="cleanSenderRole(msg.senderRole, msg.senderName)"
-                class="text-[10px] text-slate-400 px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 truncate"
-              >
-                {{ cleanSenderRole(msg.senderRole, msg.senderName) }}
-              </span>
+
+              <div class="flex items-center gap-1 text-[11px] text-slate-400">
+                <span class="text-slate-600">•</span>
+                <span class="text-slate-500">Meneruskan dari</span>
+                <span class="font-semibold text-slate-200">{{ cleanSenderName(msg.senderName) }}</span>
+                <span v-if="cleanSenderRole(msg.senderRole, msg.senderName)" class="text-slate-500 text-[10px]">
+                  ({{ cleanSenderRole(msg.senderRole, msg.senderName) }})
+                </span>
+                <template v-if="getTargetLabel(msg)">
+                  <span class="text-slate-600 font-bold">➔</span>
+                  <span class="text-violet-300 font-semibold">{{ getTargetLabel(msg) }}</span>
+                </template>
+              </div>
+
               <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">
                 • {{ msg.timestamp }}
               </span>
+
               <span
                 v-if="getIntentBadge(msg.intentType)"
                 :class="['text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded border flex-shrink-0', getIntentBadge(msg.intentType)!.class]"
               >
                 {{ getIntentBadge(msg.intentType)!.label }}
-              </span>
-              <span class="text-[10px] text-violet-400/80 flex items-center gap-1 font-mono">
-                <Sparkles class="h-2.5 w-2.5" />
-                AI Relay
               </span>
             </div>
 
@@ -242,19 +258,18 @@ function cleanBriefingText(briefing?: string, content?: string): string {
             </button>
           </div>
 
-          <!-- Natural Message Text (No box, no quotes, natural reading) -->
+          <!-- Natural AI Coordinator Voice (The AI speaking directly to the recipient/team) -->
           <p class="text-[13px] text-slate-100 leading-relaxed font-normal">
             {{ cleanBriefingText(msg.aiRelayBriefing, msg.content) }}
           </p>
 
-          <!-- Voice Note Transcript (HANYA jika ada rekaman suara audio) -->
+          <!-- Original Verbatim Input Note (Transparent & discreet) -->
           <p
-            v-if="msg.transcription"
-            class="text-[11px] text-slate-400/90 flex items-center gap-1.5 pt-0.5"
+            v-if="msg.content && msg.content.trim().toLowerCase() !== cleanBriefingText(msg.aiRelayBriefing, msg.content).trim().toLowerCase()"
+            class="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5"
           >
-            <Mic class="h-3 w-3 text-violet-400 flex-shrink-0" />
-            <span class="text-slate-500 text-[10px]">Transkrip suara:</span>
-            <span class="italic text-slate-300">"{{ msg.transcription }}"</span>
+            <span class="text-slate-500 text-[10px]">Pesan asal:</span>
+            <span class="italic text-slate-400 truncate max-w-lg">"{{ msg.transcription || msg.content }}"</span>
           </p>
 
           <!-- Compact Kanban Tasks (Jika ada dekomposisi tugas aksi) -->
@@ -327,13 +342,15 @@ function cleanBriefingText(briefing?: string, content?: string): string {
     <div class="p-4 border-t border-slate-800/80 bg-slate-900/60 backdrop-blur-md">
       <!-- Active User Context Line -->
       <div class="mb-2 px-1 flex items-center justify-between text-[11px] text-slate-400">
-        <span class="flex items-center gap-1.5">
+        <span class="flex items-center gap-1.5 flex-wrap">
           <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
           <span>Bicara sebagai:</span>
           <span class="text-slate-200 font-semibold">{{ stakeholderStore.currentUser.name }}</span>
           <span class="text-slate-500">({{ stakeholderStore.currentUser.role }})</span>
+          <span class="text-slate-600 font-mono">➔</span>
+          <span class="text-violet-400 font-medium">Beri tahu ke AI Coordinator untuk diteruskan ke tim</span>
         </span>
-        <router-link to="/team" class="text-violet-400 hover:text-violet-300 text-[10px] font-medium underline">
+        <router-link to="/team" class="text-violet-400 hover:text-violet-300 text-[10px] font-medium underline flex-shrink-0 ml-2">
           Ganti Profil
         </router-link>
       </div>
@@ -359,7 +376,7 @@ function cleanBriefingText(briefing?: string, content?: string): string {
           <input
             v-model="inputText"
             type="text"
-            placeholder="Ketik pesan atau instruksi sprint..."
+            placeholder="Sampaikan kebutuhan, instruksi kerja, atau permintaan data ke AI Coordinator..."
             class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-colors"
           />
         </div>
@@ -371,8 +388,8 @@ function cleanBriefingText(briefing?: string, content?: string): string {
           class="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-violet-600/30 flex-shrink-0"
         >
           <Loader2 v-if="isMediating" class="h-3.5 w-3.5 animate-spin" />
-          <Send v-else class="h-3.5 w-3.5" />
-          <span>{{ isMediating ? 'Memproses...' : 'Kirim' }}</span>
+          <Bot v-else class="h-3.5 w-3.5" />
+          <span>{{ isMediating ? 'Memproses...' : 'Kirim via AI Relay' }}</span>
         </button>
       </form>
     </div>

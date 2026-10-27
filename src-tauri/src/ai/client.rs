@@ -470,13 +470,22 @@ impl AIClient {
                 if let Some(target) = final_target {
                     let target_name_lower = target.name.to_lowercase();
                     let parts: Vec<&str> = target_name_lower.split_whitespace().collect();
+                    let first = parts.first().copied().unwrap_or("");
                     let joined = parts.join("");
                     clean_action = clean_action
+                        .replace(&format!("tolong @{}", target.name), "")
+                        .replace(&format!("tolong @{}", joined), "")
+                        .replace(&format!("tolong @{}", first), "")
+                        .replace(&format!("@{}", first), "")
                         .replace(&format!("tolong {}", target.name), "")
                         .replace(&format!("tolong {}", joined), "")
-                        .replace(&format!("tolong {}", parts.first().unwrap_or(&"")), "")
+                        .replace(&format!("tolong {}", first), "")
                         .replace("tolong", "")
                         .replace("minta tolong", "")
+                        .replace("siapakn", "siapkan")
+                        .replace("siapin", "siapkan")
+                        .replace("uinya", "UI-nya")
+                        .replace("ui", "UI")
                         .trim()
                         .to_string();
                 } else {
@@ -498,12 +507,12 @@ impl AIClient {
 
                 let briefing = if let Some(target) = final_target {
                     if lower.contains("butuh") {
-                        format!("{} membutuhkan bantuan dari @{}: {}.", clean_sender, target.name, clean_action)
+                        format!("@{}, {} butuh bantuanmu nih: {}.", target.name, clean_sender, clean_action)
                     } else {
-                        format!("{} meminta tolong kepada @{} untuk {}.", clean_sender, target.name, clean_action.to_lowercase())
+                        format!("@{}, {} minta tolong untuk {} nih.", target.name, clean_sender, clean_action.to_lowercase())
                     }
                 } else {
-                    format!("{} menyampaikan instruksi ke tim: {}.", clean_sender, clean_action)
+                    format!("Halo tim! {} menyampaikan kebutuhan sprint: {}.", clean_sender, clean_action)
                 };
 
                 let tasks = if has_action_verb {

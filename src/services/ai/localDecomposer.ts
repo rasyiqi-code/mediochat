@@ -27,7 +27,7 @@ export function decomposeLocally(
       ringkasan: 'Sapaan tim',
       tanggal_deadline: null,
       daftar_tugas: [],
-      ai_relay_briefing: `${cleanSender} menyapa tim: Halo!`,
+      ai_relay_briefing: `Halo tim! ${cleanSender} baru saja online dan menyapa rekan-rekan semuanya.`,
       intent_type: 'general_info',
       target_stakeholders: ['Semua Tim'],
       urgency: 'santai',
@@ -98,7 +98,7 @@ export function decomposeLocally(
       ringkasan: `Panggilan personil @${targetStakeholder.name}`,
       tanggal_deadline: null,
       daftar_tugas: [],
-      ai_relay_briefing: `${cleanSender} memanggil @${targetStakeholder.name}.`,
+      ai_relay_briefing: `@${targetStakeholder.name}, ${cleanSender} mencari atau memanggilmu nih.`,
       intent_type: 'general_info',
       target_stakeholders: [targetStakeholder.name],
       urgency: 'normal',
@@ -107,16 +107,20 @@ export function decomposeLocally(
 
   // 5. Clean Action Extraction
   let cleanAction = text;
-  // Strip introductory prefixes like "tolong dimas", "andi tolong", "minta tolong"
+  cleanAction = cleanAction.replace(/\bsiapakn\b/gi, 'siapkan');
+  cleanAction = cleanAction.replace(/\bsiapin\b/gi, 'siapkan');
+
+  // Strip introductory prefixes like "tolong @dimas", "@dimas tolong", "minta tolong"
   for (let i = 0; i < 3; i++) {
     cleanAction = cleanAction.replace(/^(tolong|minta tolong|mohon|bantu|tolong dong|minta)\s+/i, '');
     if (targetStakeholder) {
       const targetParts = targetStakeholder.name.toLowerCase().split(' ');
       const joined = targetParts.join('');
-      cleanAction = cleanAction.replace(new RegExp(`^${joined}\\s+`, 'i'), '');
-      cleanAction = cleanAction.replace(new RegExp(`^${targetStakeholder.name}\\s+`, 'i'), '');
+      cleanAction = cleanAction.replace(new RegExp(`^@?${joined}\\s+`, 'i'), '');
+      cleanAction = cleanAction.replace(new RegExp(`^@?${targetStakeholder.name}\\s+`, 'i'), '');
       if (targetParts.length > 0) {
-        cleanAction = cleanAction.replace(new RegExp(`^${targetParts[0]}\\s+`, 'i'), '');
+        cleanAction = cleanAction.replace(new RegExp(`^@?${targetParts[0]}\\s+`, 'i'), '');
+        cleanAction = cleanAction.replace(new RegExp(`\\s+@${targetParts[0]}\\b`, 'gi'), '');
       }
     }
   }
@@ -147,17 +151,17 @@ export function decomposeLocally(
   else if (lower.includes('besok sore')) deadline = 'Besok, 17:00';
   else if (lower.includes('besok siang')) deadline = 'Besok, 12:00';
 
-  // 6. Build Natural AI Relay Briefing
+  // 6. Build Natural AI Coordinator Relay Voice
   let aiRelayBriefing = '';
   if (targetStakeholder) {
     const actionPhrase = cleanAction.charAt(0).toLowerCase() + cleanAction.slice(1);
     if (lower.includes('butuh') || lower.includes('minta data') || lower.includes('minta')) {
-      aiRelayBriefing = `${cleanSender} membutuhkan bantuan dari @${targetStakeholder.name}: ${cleanAction}.`;
+      aiRelayBriefing = `@${targetStakeholder.name}, ${cleanSender} butuh bantuanmu nih: ${cleanAction}.`;
     } else {
-      aiRelayBriefing = `${cleanSender} meminta tolong kepada @${targetStakeholder.name} untuk ${actionPhrase}.`;
+      aiRelayBriefing = `@${targetStakeholder.name}, ${cleanSender} minta tolong untuk ${actionPhrase} nih.`;
     }
   } else {
-    aiRelayBriefing = `${cleanSender} menyampaikan instruksi sprint ke tim: ${cleanAction}.`;
+    aiRelayBriefing = `Halo tim! ${cleanSender} menyampaikan kebutuhan sprint: ${cleanAction}.`;
   }
 
   // Clean double spaces or grammar artifacts
