@@ -86,15 +86,15 @@ export function useAICoordinator() {
       }
 
       // 4. Natural AI Relay briefing
+      const senderFirstName = senderDisplayName.split(' ')[0] || senderDisplayName;
       let aiRelayBriefing = text.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
       if (isCasual) {
-        aiRelayBriefing = `${senderDisplayName} menyapa tim: Halo!`;
+        aiRelayBriefing = `Halo Mas ${senderFirstName}! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?`;
       } else if (result.ai_relay_briefing && result.ai_relay_briefing.trim()) {
         aiRelayBriefing = result.ai_relay_briefing.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
-        // Remove duplicate role parentheses e.g. "Andi Pratama (Principal Backend Engineer) menginformasikan:"
         aiRelayBriefing = aiRelayBriefing.replace(/\s*\([^)]*\)\s*(menginformasikan|mengabarkan):/g, ' $1:');
       } else {
-        aiRelayBriefing = `${senderDisplayName} mengabarkan: ${text}`;
+        aiRelayBriefing = `Halo tim! Si ${senderFirstName} bilang gini: ${text}`;
       }
 
       const messageId = `m-${Date.now()}`;

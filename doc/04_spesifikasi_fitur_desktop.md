@@ -50,17 +50,24 @@ Sistem multi-user didesain agar AI Coordinator mengenali personil di dalam organ
 
 ## 3. Fitur Universal Team Feed & Kanban Board
 
-### 3.1. Universal Team Feed: Human → AI → Human Relay (`/chat`)
-* **Paradigma Komunikasi Human → AI → Human**: Pengguna tidak berbicara langsung secara mentah dengan rekan tim, melainkan memberikan instruksi/kebutuhan kepada **MedioAI Coordinator**. AI kemudian menjadi pembawa pesan (*messenger*) resmi yang mengabarkan intisari kebutuhan kepada penerima: *"@Dimas Wicaksono, Andi minta tolong untuk siapkan UI-nya nih."*.
-* **Tampilan Chat Alami & Kejelasan Peran (AI Coordinator as Messenger)**:
-  - **MedioAI sebagai Avatar Pembicara**: Setiap kartu pesan menampilkan avatar **MedioAI Coordinator** (dengan aksen violet glow), memperjelas bahwa kalimat di dalam feed adalah suara AI asisten yang sedang menyampaikan amanat/kebutuhan.
-  - **Rute Relay Transparan**: Header kartu mencantumkan jalur pengabaran yang eksplisit: `MedioAI Coordinator • Meneruskan dari [Pengirim] (Role) ➔ [Penerima]`.
-  - **Identitas Pengguna Jelas di Input Bar**: Bar input bawah menampilkan konteks `Bicara sebagai: [Pengguna] ➔ Beri tahu ke AI Coordinator untuk diteruskan ke tim`.
-  - **Transparansi Pesan Asal**: Teks asli yang diketik atau diucapkan pengirim tetap ditampilkan secara diskret dan ringkas di bawah kalimat AI (*"Pesan asal: ..."*).
-  - **Aksi Kanban Minimalis**: Jika pesan mengandung instruksi kerja nyata, pil aksi terkompresi disematkan di bawah pesan lengkap dengan target assignee dan tautan instan ke `/board`.
+### 3.1. Universal Team Feed: Telegram-Style AI Assistant Bubbles (`/chat`)
+* **Paradigma Komunikasi Human ➔ AI ➔ Human (Setiap Stakeholder Punya Asisten Pribadi)**:
+  - Komunikasi di MedioChat tidak langsung mentah antar manusia, melainkan diperantarai oleh Asisten AI pribadi masing-masing stakeholder.
+* **Tata Letak Geometri Bubble Chat Telegram (Kanan & Kiri)**:
+  - **Bubble Kanan (Outgoing / Pengguna Aktif)**:
+    - Pesan yang diketik atau diucapkan oleh pengguna aktif (*"tolong @dimas siapkan UI-nya"*) langsung tampil di sisi kanan dengan gaya *outgoing bubble* Telegram (gradien violet-indigo, sudut rounded-2xl rounded-br-xs).
+    - Dilengkapi penanda waktu dan ikon centang ganda (*double tick* `✓✓`) khas Telegram.
+  - **Bubble Kiri (Incoming / MedioAI Asisten)**:
+    - Asisten AI berbicara di sisi kiri feed dengan avatar bot dan lencana kecerdasan buatan.
+    - Nada bicara alami seolah asisten pribadi yang sedang menyampaikan kebutuhan rekan tim:
+      - *Kebutuhan data/bantuan*: `"@Dimas Wicaksono, si Andi butuh aset desain login dari kamu nih sebelum besok."`
+      - *Penugasan/instruksi*: `"@Dimas Wicaksono, si Andi minta kamu siapkan UI-nya nih sebelum besok."`
+      - *Update/kabar*: `"Halo tim! Si Andi bilang gini: Server staging sudah siap diuji ya."`
+      - *Sapaan casual*: `"Halo Mas Andi! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?"`
+    - Disertai kartu tugas Kanban ringkas di bawah balon percakapan (`[DESAIN] Siapkan UI-nya ➔ Dimas Wicaksono [Buka Board →]`).
 * **Manajemen Feed Bersih**:
-  - Tombol hapus satuan pada setiap pesan (muncul saat *hover*).
-  - Tombol **Bersihkan Feed** untuk mereset riwayat obrolan di workstation lokal kapan saja.
+  - Tombol hapus satuan pada setiap bubble pesan (muncul saat *hover*).
+  - Tombol **Bersihkan Feed** di header untuk mereset seluruh riwayat obrolan kapan saja.
 
 ### 3.2. Interactive Multi-User Kanban Board (`/board`)
 * **Tiga Kolom Status**:

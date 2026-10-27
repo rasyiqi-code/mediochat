@@ -6,17 +6,16 @@ use serde_json::{json, Value};
 use std::str::FromStr;
 use std::time::Instant;
 
-const SYSTEM_DECOMPOSITION_PROMPT: &str = r#"Anda adalah AI Relay & Executive Coordinator untuk sistem MedioChat (Team AI Bridge).
+const SYSTEM_DECOMPOSITION_PROMPT: &str = r#"Anda adalah AI Personal Assistant & Executive Relay untuk sistem MedioChat.
 PRINSIP UTAMA: Komunikasi di MedioChat BUKAN Human-to-Human langsung, melainkan HUMAN -> AI -> HUMAN.
-Tugas Anda adalah membaca pesan dari pengirim (Human A) dan menyampaikan intisari kebutuhan kepada rekan tim (Human B / Tim) dengan bahasa Indonesia yang ALAMI, LUWES, dan RAMAH (seperti asisten tim yang cakap).
-
-ATURAN PENTING GAYA BAHASA:
+Setiap stakeholder memiliki asisten AI pribadi yang saling berkoordinasi.
+Tugas Anda adalah membaca pesan dari pengirim (Human A) dan menyampaikannya kepada penerima (Human B / Tim) dengan bahasa Indonesia yang sangat natural, luwes, dan ramah seperti asisten pribadi:
 1. "ai_relay_briefing":
-   - Tulis langsung apa yang disampaikan/dibutuhkan pengirim tanpa tanda kutip di awal dan akhir.
-   - Contoh instruksi: "Budi butuh dump skema database PostgreSQL dari Andi sebelum besok sore untuk modul payment."
-   - Contoh info: "Citra mengabarkan bahwa form onboarding sudah selesai di-update dan siap dicoba."
+   - Minta bantuan/data: "@[Penerima], si [Pengirim] butuh [hal yang dibutuhkan] dari kamu nih sebelum [waktu]."
+   - Instruksi/tugas: "@[Penerima], si [Pengirim] minta kamu [aksi] nih sebelum [waktu]."
+   - Update/kabar: "Halo tim! Si [Pengirim] bilang gini: [intisari kabar]."
    - JIKA PESAN HANYA SAPAAN/CASUAL (misal: "halo", "hai", "selamat pagi", "apa kabar", "tes"):
-     Sampaikan sapaan santai: "[Nama Pengirim] menyapa tim: Halo semuanya!"
+     Sampaikan sapaan santai: "Halo Mas [Pengirim]! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?"
      DAN "daftar_tugas" HARUS KOSONG []! Jangan mengarang tugas jika hanya sapaan.
 2. "daftar_tugas":
    - Hanya isi jika pengirim memang meminta atau menginstruksikan pekerjaan teknis spesifik.
@@ -29,18 +28,18 @@ Tingkat urgensi: "segera" | "normal" | "santai".
 
 KEMBALIKAN HANYA VALID JSON MURNI TANPA MARKDOWN DAN TANPA TEKS LAIN. Format:
 {
-  "ai_relay_briefing": "Teks pengabaran alami dari AI ke tim (tanpa tanda kutip)",
-  "intent_type": "request_data",
+  "ai_relay_briefing": "@Dimas Wicaksono, si Andi minta kamu siapkan UI-nya nih sebelum besok.",
+  "intent_type": "task_instruction",
   "target_stakeholders": ["Nama personil penerima atau divisi target"],
   "urgency": "normal",
   "ringkasan": "Ringkasan ringkas dalam 1 kalimat",
-  "tanggal_deadline": "Besok, 17:00 / Lusa / tanggal spesifik atau null",
+  "tanggal_deadline": "Besok / Lusa / Hari ini atau null",
   "daftar_tugas": [
     {
-      "divisi": "backend",
+      "divisi": "desain",
       "deskripsi": "Deskripsi aksi spesifik yang perlu dikerjakan",
-      "prioritas": "tinggi",
-      "estimasi_jam": 4,
+      "prioritas": "sedang",
+      "estimasi_jam": 3,
       "assignee_name": "Nama Stakeholder atau null",
       "assignee_role": "Role Stakeholder atau null"
     }
@@ -356,20 +355,20 @@ impl AIClient {
             Ok(mut res) => {
                 if let Some(briefing) = res.ai_relay_briefing.as_deref() {
                     let unquoted = briefing.trim().trim_matches('"').trim_matches('\'').trim();
+                    let sender_first = sender_name
+                        .map(|s| s.split_whitespace().next().unwrap_or(s))
+                        .unwrap_or("Rekan Tim");
                     if unquoted.eq_ignore_ascii_case("halo") || unquoted.eq_ignore_ascii_case("hi") || unquoted.eq_ignore_ascii_case("pagi") {
-                        let sender = sender_name.unwrap_or("Rekan tim");
-                        res.ai_relay_briefing = Some(format!("{} menyapa tim: Halo!", sender));
+                        res.ai_relay_briefing = Some(format!("Halo Mas {}! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?", sender_first));
                         res.daftar_tugas = vec![];
                     } else {
                         res.ai_relay_briefing = Some(unquoted.to_string());
                     }
                 } else {
-                    let fallback = if let Some(s) = sender_name {
-                        format!("{} mengabarkan: {}", s, text)
-                    } else {
-                        format!("Pesan masuk dari tim: {}", text)
-                    };
-                    res.ai_relay_briefing = Some(fallback);
+                    let sender_first = sender_name
+                        .map(|s| s.split_whitespace().next().unwrap_or(s))
+                        .unwrap_or("Rekan Tim");
+                    res.ai_relay_briefing = Some(format!("Halo tim! Si {} bilang gini: {}", sender_first, text));
                 }
                 Ok(res)
             }
@@ -392,11 +391,12 @@ impl AIClient {
                     || lower == "ping";
 
                 if is_casual {
+                    let sender_first = clean_sender.split_whitespace().next().unwrap_or(clean_sender);
                     return Ok(TaskDecompositionResult {
                         ringkasan: "Sapaan tim".to_string(),
                         tanggal_deadline: None,
                         daftar_tugas: vec![],
-                        ai_relay_briefing: Some(format!("{} menyapa tim: Halo!", clean_sender)),
+                        ai_relay_briefing: Some(format!("Halo Mas {}! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?", sender_first)),
                         intent_type: Some("general_info".to_string()),
                         target_stakeholders: Some(vec!["Semua Tim".to_string()]),
                         urgency: Some("santai".to_string()),
@@ -505,14 +505,31 @@ impl AIClient {
                 let target_name = final_target.map(|t| t.name.clone()).unwrap_or_else(|| "Tim".to_string());
                 let target_role = final_target.map(|t| t.role.clone());
 
+                let sender_first = clean_sender.split_whitespace().next().unwrap_or(clean_sender);
+                let deadline_suffix = if lower.contains("lusa") {
+                    "nih sebelum lusa."
+                } else if lower.contains("hari ini") {
+                    "nih hari ini juga."
+                } else {
+                    "nih sebelum besok."
+                };
+
                 let briefing = if let Some(target) = final_target {
-                    if lower.contains("butuh") {
-                        format!("@{}, {} butuh bantuanmu nih: {}.", target.name, clean_sender, clean_action)
+                    if lower.contains("butuh") || lower.contains("perlu") || lower.contains("dump") {
+                        format!("@{}, si {} butuh {} dari kamu {}", target.name, sender_first, clean_action.to_lowercase(), deadline_suffix)
+                    } else if has_action_verb {
+                        format!("@{}, si {} minta kamu {} {}", target.name, sender_first, clean_action.to_lowercase(), deadline_suffix)
                     } else {
-                        format!("@{}, {} minta tolong untuk {} nih.", target.name, clean_sender, clean_action.to_lowercase())
+                        format!("@{}, si {} bilang gini: {}.", target.name, sender_first, clean_action)
                     }
                 } else {
-                    format!("Halo tim! {} menyampaikan kebutuhan sprint: {}.", clean_sender, clean_action)
+                    if lower.contains("butuh") || lower.contains("perlu") {
+                        format!("Halo tim! Si {} butuh bantuan nih: {}.", sender_first, clean_action)
+                    } else if has_action_verb {
+                        format!("Halo tim! Si {} minta tolong disiapkan: {} {}", sender_first, clean_action, deadline_suffix)
+                    } else {
+                        format!("Halo tim! Si {} bilang gini: {}.", sender_first, clean_action)
+                    }
                 };
 
                 let tasks = if has_action_verb {

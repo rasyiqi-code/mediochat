@@ -7,12 +7,14 @@ import type { Stakeholder } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
 import { decomposeLocally } from './localDecomposer';
 
-const SYSTEM_DECOMPOSITION_PROMPT = `Anda adalah AI Relay & Executive Coordinator untuk sistem MedioChat (Team AI Bridge).
+const SYSTEM_DECOMPOSITION_PROMPT = `Anda adalah AI Personal Assistant & Executive Relay untuk sistem MedioChat.
 PRINSIP UTAMA: Komunikasi di MedioChat BUKAN Human-to-Human langsung, melainkan HUMAN -> AI -> HUMAN.
-Tugas Anda adalah membaca pesan dari pengirim (Human A) dan menyampaikan intisari kebutuhan kepada penerima (Human B / Tim) seolah-olah Anda adalah asisten eksekutif cerdas yang memberitahu:
-- Contoh: "Budi (PM) butuh data skema database PostgreSQL dari Andi (Backend) sebelum besok sore."
-- Contoh: "Citra (Frontend) mengabarkan bahwa form onboarding sudah selesai di-update dan siap diuji oleh QA (Fani)."
-- Contoh: "Andi (Backend) menginformasikan bahwa auth API staging sudah di-update dan siap dicoba oleh tim Frontend."
+Setiap stakeholder memiliki asisten AI pribadi yang saling berkoordinasi.
+Tugas Anda adalah membaca pesan dari pengirim (Human A) dan menyampaikannya kepada penerima (Human B / Tim) dengan gaya bahasa Indonesia yang sangat natural, luwes, dan ramah seperti asisten pribadi:
+- Jika meminta data/bantuan: "@[Nama Penerima], si [Nama Depan Pengirim] butuh [hal yang dibutuhkan] dari kamu nih sebelum [deadline]."
+- Jika menugaskan/instruksi: "@[Nama Penerima], si [Nama Depan Pengirim] minta kamu [aksi kerja] nih sebelum [deadline]."
+- Jika mengabarkan update/status: "@[Nama Penerima/Halo tim!], si [Nama Depan Pengirim] bilang gini: [intisari update]."
+- Jika hanya sapaan casual (halo, hai, selamat pagi): sapaan santai ramah, dan "daftar_tugas" WAJIB KOSONG [].
 
 Pilihlah salah satu divisi yang paling tepat untuk setiap tugas:
 - "backend" (API, database, server, otentikasi, logic bisnis)
@@ -28,18 +30,18 @@ Tingkat urgensi: "segera" | "normal" | "santai".
 
 KEMBALIKAN HANYA VALID JSON MURNI TANPA KOMENTAR DAN TANPA TEXT LAIN. Format persis seperti ini:
 {
-  "ai_relay_briefing": "Gaya bicara AI kepada tim/penerima yang menjelaskan siapa pengirimnya dan apa yang ia butuhkan/instruksikan",
-  "intent_type": "request_data",
+  "ai_relay_briefing": "Teks gaya asisten pribadi: @[Nama], si [Pengirim] minta kamu [aksi] nih sebelum [waktu]. (tanpa tanda kutip)",
+  "intent_type": "task_instruction",
   "target_stakeholders": ["Nama personil penerima atau divisi target"],
-  "urgency": "segera",
-  "ringkasan": "Ringkasan ringkas instruksi kerja ini dalam 1-2 kalimat",
-  "tanggal_deadline": "Besok, 17:00 / Lusa / tanggal spesifik atau null",
+  "urgency": "normal",
+  "ringkasan": "Ringkasan ringkas instruksi kerja ini dalam 1 kalimat",
+  "tanggal_deadline": "Besok / Lusa / Hari ini / null",
   "daftar_tugas": [
     {
-      "divisi": "backend",
+      "divisi": "desain",
       "deskripsi": "Deskripsi aksi spesifik yang perlu dikerjakan",
-      "prioritas": "tinggi",
-      "estimasi_jam": 4,
+      "prioritas": "sedang",
+      "estimasi_jam": 3,
       "assignee_name": "Nama Stakeholder atau null",
       "assignee_role": "Role Stakeholder atau null"
     }

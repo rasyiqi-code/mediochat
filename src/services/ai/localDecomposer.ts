@@ -23,11 +23,12 @@ export function decomposeLocally(
   ];
 
   if (casualGreetings.includes(lower) || (lower.startsWith('halo') && lower.split(' ').length <= 3)) {
+    const senderFirstName = cleanSender.split(' ')[0] || cleanSender;
     return {
       ringkasan: 'Sapaan tim',
       tanggal_deadline: null,
       daftar_tugas: [],
-      ai_relay_briefing: `Halo tim! ${cleanSender} baru saja online dan menyapa rekan-rekan semuanya.`,
+      ai_relay_briefing: `Halo Mas ${senderFirstName}! Ada tugas atau koordinasi yang mau disampaikan ke tim hari ini?`,
       intent_type: 'general_info',
       target_stakeholders: ['Semua Tim'],
       urgency: 'santai',
@@ -36,19 +37,27 @@ export function decomposeLocally(
 
   // 2. Identify Target Stakeholder from Directory
   let targetStakeholder: Stakeholder | undefined;
+  let explicitTargetMentioned = false;
 
   for (const s of stakeholders) {
+    // Ignore sender targeting themselves
+    if (s.name.toLowerCase() === cleanSender.toLowerCase()) continue;
+
     const sNameLower = s.name.toLowerCase();
     const parts = sNameLower.split(' ').filter(Boolean);
     const joined = parts.join(''); // e.g. "dimaswicaksono"
 
-    // Check full name, joined name, or first name
+    // Check full name, joined name, @name, or first name
     if (
       lower.includes(sNameLower) ||
       lower.includes(joined) ||
-      (parts.length > 0 && lower.split(/[\s,.:;!?]+/).includes(parts[0]))
+      (parts.length > 0 && (
+        lower.split(/[\s@,.:;!?]+/).includes(parts[0]) ||
+        lower.includes('@' + parts[0])
+      ))
     ) {
       targetStakeholder = s;
+      explicitTargetMentioned = true;
       break;
     }
   }
@@ -78,9 +87,11 @@ export function decomposeLocally(
     matchedDivision = 'general';
   }
 
-  // If target stakeholder not yet found, find one by matched division
+  // If target stakeholder not explicitly found, find a candidate from other team members by matched division
   if (!targetStakeholder && matchedDivision !== 'general') {
-    targetStakeholder = stakeholders.find((s) => s.division === matchedDivision);
+    targetStakeholder = stakeholders.find(
+      (s) => s.division === matchedDivision && s.name.toLowerCase() !== cleanSender.toLowerCase()
+    );
   }
 
   // 4. Action Request Detection
@@ -151,17 +162,36 @@ export function decomposeLocally(
   else if (lower.includes('besok sore')) deadline = 'Besok, 17:00';
   else if (lower.includes('besok siang')) deadline = 'Besok, 12:00';
 
-  // 6. Build Natural AI Coordinator Relay Voice
+  // 6. Build Natural AI Personal Assistant Relay Voice
+  const senderFirstName = cleanSender.split(' ')[0] || cleanSender;
+  const deadlineSuffix = isHighPriority 
+    ? 'nih segera!' 
+    : deadline === 'Besok' 
+      ? 'nih sebelum besok.' 
+      : deadline === 'Lusa' 
+        ? 'nih sebelum lusa.' 
+        : deadline === 'Hari ini' 
+          ? 'nih hari ini juga.' 
+          : 'nih.';
+
   let aiRelayBriefing = '';
-  if (targetStakeholder) {
+  if (targetStakeholder && explicitTargetMentioned) {
     const actionPhrase = cleanAction.charAt(0).toLowerCase() + cleanAction.slice(1);
-    if (lower.includes('butuh') || lower.includes('minta data') || lower.includes('minta')) {
-      aiRelayBriefing = `@${targetStakeholder.name}, ${cleanSender} butuh bantuanmu nih: ${cleanAction}.`;
+    if (lower.includes('butuh') || lower.includes('perlu') || lower.includes('minta data') || lower.includes('dump') || lower.includes('ekspor')) {
+      aiRelayBriefing = `@${targetStakeholder.name}, si ${senderFirstName} butuh ${actionPhrase} dari kamu ${deadlineSuffix}`;
+    } else if (hasActionVerb) {
+      aiRelayBriefing = `@${targetStakeholder.name}, si ${senderFirstName} minta kamu ${actionPhrase} ${deadlineSuffix}`;
     } else {
-      aiRelayBriefing = `@${targetStakeholder.name}, ${cleanSender} minta tolong untuk ${actionPhrase} nih.`;
+      aiRelayBriefing = `@${targetStakeholder.name}, si ${senderFirstName} bilang gini: ${cleanAction}.`;
     }
   } else {
-    aiRelayBriefing = `Halo tim! ${cleanSender} menyampaikan kebutuhan sprint: ${cleanAction}.`;
+    if (lower.includes('butuh') || lower.includes('perlu')) {
+      aiRelayBriefing = `Halo tim! Si ${senderFirstName} butuh bantuan nih: ${cleanAction}.`;
+    } else if (hasActionVerb) {
+      aiRelayBriefing = `Halo tim! Si ${senderFirstName} minta tolong disiapkan: ${cleanAction} ${deadlineSuffix}`;
+    } else {
+      aiRelayBriefing = `Halo tim! Si ${senderFirstName} bilang gini: ${cleanAction}.`;
+    }
   }
 
   // Clean double spaces or grammar artifacts
