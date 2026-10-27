@@ -1,4 +1,11 @@
-export type Division = 'backend' | 'frontend' | 'desain' | 'qa' | 'devops' | 'general';
+export type Division = 'backend' | 'frontend' | 'desain' | 'qa' | 'devops' | 'general' | (string & {});
+
+export interface DivisionItem {
+  id: string;
+  label: string;
+  description?: string;
+}
+
 export type TaskPriority = 'tinggi' | 'sedang' | 'rendah';
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 
@@ -51,6 +58,7 @@ export interface ChatMessage {
   transcription?: string;
   summary?: string;
   tasks?: TaskItem[];
+  vaultCitations?: { id: string; name: string; snippet?: string }[];
 }
 
 export interface PeerDevice {
@@ -67,7 +75,7 @@ export interface PeerDevice {
 export interface VaultFile {
   id: string;
   name: string;
-  category: 'Kontrak' | 'Desain' | 'Dokumen_Teknis' | 'Laporan' | 'Lainnya';
+  category: string;
   sizeBytes: number;
   uploadedAt: string;
   summary?: string;

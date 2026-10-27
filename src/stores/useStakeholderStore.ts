@@ -1,8 +1,18 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Stakeholder, Division } from '@/types';
+import type { Stakeholder, Division, DivisionItem } from '@/types';
 
 const STORAGE_STAKEHOLDERS_KEY = 'mediochat_stakeholders_v1';
+const STORAGE_DIVISIONS_KEY = 'mediochat_divisions_v1';
+
+export const DEFAULT_DIVISIONS: DivisionItem[] = [
+  { id: 'backend', label: 'Backend' },
+  { id: 'frontend', label: 'Frontend' },
+  { id: 'desain', label: 'Desain' },
+  { id: 'qa', label: 'QA Testing' },
+  { id: 'devops', label: 'DevOps' },
+  { id: 'general', label: 'General / Manajemen' },
+];
 
 export const DEFAULT_STAKEHOLDERS: Stakeholder[] = [
   {
@@ -92,7 +102,7 @@ export const DEFAULT_STAKEHOLDERS: Stakeholder[] = [
 ];
 
 export const useStakeholderStore = defineStore('stakeholder', () => {
-  const saved = (() => {
+  const savedStakeholders = (() => {
     try {
       const raw = localStorage.getItem(STORAGE_STAKEHOLDERS_KEY);
       if (!raw) return DEFAULT_STAKEHOLDERS;
@@ -106,14 +116,37 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
     }
   })();
 
-  const stakeholders = ref<Stakeholder[]>(saved);
+  const savedDivisions = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_DIVISIONS_KEY);
+      if (!raw) return DEFAULT_DIVISIONS;
+      const parsed: DivisionItem[] = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return DEFAULT_DIVISIONS;
+    } catch {
+      return DEFAULT_DIVISIONS;
+    }
+  })();
+
+  const stakeholders = ref<Stakeholder[]>(savedStakeholders);
+  const divisions = ref<DivisionItem[]>(savedDivisions);
+
+  // Auto-sync any division that might exist on stakeholders but missing in divisions list
+  for (const s of stakeholders.value) {
+    if (s.division && !divisions.value.some((d) => d.id === s.division)) {
+      const label = s.division.charAt(0).toUpperCase() + s.division.slice(1);
+      divisions.value.push({ id: s.division, label });
+    }
+  }
 
   const currentUser = computed<Stakeholder>(() => {
     const active = stakeholders.value.find((s) => s.isCurrentUser);
     return active || stakeholders.value[0] || DEFAULT_STAKEHOLDERS[0];
   });
 
-  function persist() {
+  function persistStakeholders() {
     try {
       localStorage.setItem(STORAGE_STAKEHOLDERS_KEY, JSON.stringify(stakeholders.value));
     } catch (e) {
@@ -121,7 +154,44 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
     }
   }
 
+  function persistDivisions() {
+    try {
+      localStorage.setItem(STORAGE_DIVISIONS_KEY, JSON.stringify(divisions.value));
+    } catch (e) {
+      console.warn('Gagal menyimpan divisi ke localStorage:', e);
+    }
+  }
+
+  function addDivision(label: string): DivisionItem {
+    const trimmed = label.trim();
+    if (!trimmed) {
+      return divisions.value[0] || { id: 'general', label: 'General' };
+    }
+    const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const existing = divisions.value.find((d) => d.id === id || d.label.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      return existing;
+    }
+    const newDiv: DivisionItem = {
+      id,
+      label: trimmed,
+    };
+    divisions.value.push(newDiv);
+    persistDivisions();
+    return newDiv;
+  }
+
+  function deleteDivision(id: string) {
+    divisions.value = divisions.value.filter((d) => d.id !== id);
+    persistDivisions();
+  }
+
   function addStakeholder(member: Omit<Stakeholder, 'id'>) {
+    // If division is new, ensure it is added to divisions list
+    if (member.division) {
+      addDivision(member.division);
+    }
+
     const newStakeholder: Stakeholder = {
       ...member,
       id: `sh-${Date.now()}`,
@@ -130,18 +200,21 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
       stakeholders.value.forEach((s) => (s.isCurrentUser = false));
     }
     stakeholders.value.push(newStakeholder);
-    persist();
+    persistStakeholders();
     return newStakeholder;
   }
 
   function updateStakeholder(id: string, updates: Partial<Stakeholder>) {
     const index = stakeholders.value.findIndex((s) => s.id === id);
     if (index !== -1) {
+      if (updates.division) {
+        addDivision(updates.division);
+      }
       if (updates.isCurrentUser) {
         stakeholders.value.forEach((s) => (s.isCurrentUser = false));
       }
       stakeholders.value[index] = { ...stakeholders.value[index], ...updates };
-      persist();
+      persistStakeholders();
     }
   }
 
@@ -151,7 +224,7 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
     if (target?.isCurrentUser && stakeholders.value.length > 0) {
       stakeholders.value[0].isCurrentUser = true;
     }
-    persist();
+    persistStakeholders();
   }
 
   function setCurrentUser(id: string) {
@@ -164,7 +237,7 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
         s.isCurrentUser = false;
       }
     });
-    if (found) persist();
+    if (found) persistStakeholders();
   }
 
   function findStakeholderByName(name: string): Stakeholder | undefined {
@@ -181,12 +254,17 @@ export const useStakeholderStore = defineStore('stakeholder', () => {
 
   function resetToDefaults() {
     stakeholders.value = JSON.parse(JSON.stringify(DEFAULT_STAKEHOLDERS));
-    persist();
+    divisions.value = JSON.parse(JSON.stringify(DEFAULT_DIVISIONS));
+    persistStakeholders();
+    persistDivisions();
   }
 
   return {
     stakeholders,
+    divisions,
     currentUser,
+    addDivision,
+    deleteDivision,
     addStakeholder,
     updateStakeholder,
     deleteStakeholder,

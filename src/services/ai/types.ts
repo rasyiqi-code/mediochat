@@ -18,7 +18,7 @@ export interface AIProviderConfig {
 }
 
 export interface TaskDecompositionItem {
-  divisi: 'backend' | 'frontend' | 'desain' | 'qa' | 'devops' | 'general';
+  divisi: 'backend' | 'frontend' | 'desain' | 'qa' | 'devops' | 'general' | (string & {});
   deskripsi: string;
   prioritas: 'tinggi' | 'sedang' | 'rendah';
   estimasi_jam?: number;

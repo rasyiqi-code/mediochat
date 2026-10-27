@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { 
   CheckCircle2, ArrowRight, Plus, Search, Trash2, ArrowLeft, RefreshCw, Check
 } from 'lucide-vue-next';
@@ -11,17 +11,13 @@ import { getDivisionBadge, getPriorityBadge } from '@/lib/utils';
 const taskStore = useTaskStore();
 const stakeholderStore = useStakeholderStore();
 
-const divisions: { id: Division | 'all'; label: string }[] = [
+const divisions = computed<{ id: Division | 'all'; label: string }[]>(() => [
   { id: 'all', label: 'Semua Divisi' },
-  { id: 'backend', label: 'Backend' },
-  { id: 'frontend', label: 'Frontend' },
-  { id: 'desain', label: 'Desain' },
-  { id: 'qa', label: 'QA Testing' },
-  { id: 'devops', label: 'DevOps' },
-  { id: 'general', label: 'General' },
-];
+  ...stakeholderStore.divisions,
+]);
 
 const showAddTaskModal = ref(false);
+const isCustomDivision = ref(false);
 const newTaskForm = ref<{
   divisi: Division;
   deskripsi: string;
@@ -43,6 +39,11 @@ function handleCreateTask() {
   const assigned = newTaskForm.value.assigneeName.trim() || current.name;
   const matched = stakeholderStore.findStakeholderByName(assigned);
 
+  // If user entered a custom division name, register it in stakeholderStore
+  if (newTaskForm.value.divisi) {
+    stakeholderStore.addDivision(newTaskForm.value.divisi);
+  }
+
   const newTask: TaskItem = {
     id: `t-${Date.now()}`,
     divisi: newTaskForm.value.divisi,
@@ -59,8 +60,9 @@ function handleCreateTask() {
 
   taskStore.addTask(newTask);
   showAddTaskModal.value = false;
+  isCustomDivision.value = false;
   newTaskForm.value = {
-    divisi: 'backend',
+    divisi: stakeholderStore.divisions[0]?.id || 'backend',
     deskripsi: '',
     prioritas: 'sedang',
     deadline: 'Besok, 17:00',
@@ -79,24 +81,24 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden">
-    <!-- Top Header & Filter Controls -->
-    <header class="h-16 px-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40 backdrop-blur-md">
+  <div class="flex-1 flex flex-col h-full bg-[#FAF8F5] text-black font-sans overflow-hidden">
+    <!-- Top Header & Filter Controls (Neobrutalism) -->
+    <header class="h-16 px-6 border-b-3 border-black flex items-center justify-between bg-white select-none">
       <div>
-        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+        <h2 class="text-sm font-black text-black flex items-center gap-2">
           <span>Kanban Tugas AI & Multi-User</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 font-medium">
+          <span class="text-[10px] px-2 py-0.5 rounded-md bg-[#FFE600] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]">
             {{ taskStore.filteredTasks.length }} Tugas
           </span>
         </h2>
-        <p class="text-xs text-slate-400">Daftar tugas terurai otomatis dan terpetakan ke stakeholder organisasi</p>
+        <p class="text-[11px] font-bold text-black/60">Daftar tugas terurai otomatis dan terpetakan ke stakeholder organisasi</p>
       </div>
 
       <div class="flex items-center gap-3">
         <!-- Assignee Filter -->
         <select
           v-model="taskStore.filterAssignee"
-          class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+          class="bg-white border-2 border-black rounded-xl px-3 py-1.5 text-xs text-black font-black focus:outline-none shadow-[2px_2px_0px_#000]"
         >
           <option value="all">Semua Stakeholder</option>
           <option
@@ -110,95 +112,95 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
 
         <!-- Search Input -->
         <div class="relative">
-          <Search class="h-3.5 w-3.5 text-slate-500 absolute left-3 top-2.5" />
+          <Search class="h-3.5 w-3.5 text-black absolute left-3 top-2.5 stroke-[2.5]" />
           <input
             v-model="taskStore.searchQuery"
             type="text"
             placeholder="Cari tugas atau personil..."
-            class="bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 w-44"
+            class="bg-white border-2 border-black rounded-xl pl-8 pr-3 py-1.5 text-xs text-black font-bold placeholder:text-black/40 shadow-[2px_2px_0px_#000] focus:outline-none w-44"
           />
         </div>
 
         <button
           @click="showAddTaskModal = true"
-          class="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-violet-600/20"
+          class="px-3.5 py-1.5 rounded-xl bg-[#FFE600] hover:bg-[#FACC15] text-black font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[3px_3px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all"
         >
-          <Plus class="h-3.5 w-3.5" />
+          <Plus class="h-3.5 w-3.5 stroke-[2.5]" />
           <span>Tambah Tugas</span>
         </button>
       </div>
     </header>
 
     <!-- Division Filter Chips -->
-    <div class="px-6 py-2.5 border-b border-slate-800/60 bg-slate-950/40 flex items-center gap-2 overflow-x-auto">
+    <div class="px-6 py-2.5 border-b-3 border-black bg-[#FFFDF5] flex items-center gap-2 overflow-x-auto select-none">
       <button
         v-for="div in divisions"
         :key="div.id"
         @click="taskStore.filterDivisi = div.id"
         :class="[
-          'px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0',
+          'px-3 py-1 rounded-lg text-xs font-black transition-all flex-shrink-0 border-2 border-black',
           taskStore.filterDivisi === div.id
-            ? 'bg-violet-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800'
+            ? 'bg-[#FFE600] text-black shadow-[2px_2px_0px_#000] -translate-y-0.5'
+            : 'bg-white text-black hover:bg-[#FEF08A] shadow-[1.5px_1.5px_0px_#000]'
         ]"
       >
         {{ div.label }}
       </button>
     </div>
 
-    <!-- 3 Kanban Columns -->
+    <!-- 3 Kanban Columns (Neobrutalism) -->
     <div class="flex-1 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-x-auto overflow-y-hidden">
       <!-- Column 1: TODO -->
-      <div class="flex flex-col bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden">
-        <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+      <div class="flex flex-col bg-[#FFFDF5] border-3 border-black rounded-2xl overflow-hidden shadow-[4px_4px_0px_#000]">
+        <div class="p-3.5 border-b-3 border-black bg-[#FEF08A] flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-            <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Siap Dikerjakan (Todo)</h3>
+            <span class="h-3 w-3 rounded-full bg-[#EAB308] border-1.5 border-black"></span>
+            <h3 class="text-xs font-black text-black uppercase tracking-wider">Siap Dikerjakan (Todo)</h3>
           </div>
-          <span class="text-xs font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md">
+          <span class="text-xs font-mono font-black px-2 py-0.5 bg-white border-2 border-black text-black rounded-md shadow-[1px_1px_0px_#000]">
             {{ taskStore.todoTasks.length }}
           </span>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
-          <div v-if="taskStore.todoTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+          <div v-if="taskStore.todoTasks.length === 0" class="py-12 text-center text-black/50 text-xs font-bold italic">
             Belum ada tugas di kolom ini.
           </div>
 
           <div
             v-for="task in taskStore.todoTasks"
             :key="task.id"
-            class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 transition-all space-y-2.5 shadow-sm group"
+            class="p-3.5 rounded-xl bg-white border-2 border-black hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 transition-all space-y-2.5 shadow-[3px_3px_0px_#000] group"
           >
             <div class="flex items-center justify-between">
-              <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionBadge(task.divisi)]">
+              <span :class="['text-[9px] uppercase px-2 py-0.5 rounded', getDivisionBadge(task.divisi)]">
                 {{ task.divisi }}
               </span>
               <div class="flex items-center gap-1.5">
-                <span :class="['text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border', getPriorityBadge(task.prioritas)]">
+                <span :class="['text-[9px] uppercase px-1.5 py-0.5 rounded', getPriorityBadge(task.prioritas)]">
                   {{ task.prioritas }}
                 </span>
                 <button
                   @click="deleteTask(task.id)"
-                  class="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  class="text-black/60 hover:text-[#E11D48] opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                   title="Hapus Tugas"
                 >
-                  <Trash2 class="h-3 w-3" />
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            <p class="text-xs text-slate-200 font-medium leading-snug">
+            <p class="text-xs text-black font-black leading-snug">
               {{ task.deskripsi }}
             </p>
 
             <!-- Stakeholder Assignment Pill -->
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
-              <div class="flex items-center gap-1.5 text-slate-400">
-                <span class="h-5 w-5 rounded-md bg-violet-600/20 text-violet-300 font-bold flex items-center justify-center text-[9px]">
+            <div class="flex items-center justify-between pt-2 border-t-2 border-black/10 text-[10px]">
+              <div class="flex items-center gap-1.5 text-black">
+                <span class="h-5 w-5 rounded bg-[#C4B5FD] text-black font-black border border-black flex items-center justify-center text-[9px]">
                   {{ (task.assigneeName || 'U').slice(0, 1).toUpperCase() }}
                 </span>
-                <span class="font-semibold text-emerald-400 truncate max-w-[120px]">
+                <span class="font-black text-black truncate max-w-[120px]">
                   {{ task.assigneeName || 'Belum Ditugaskan' }}
                 </span>
               </div>
@@ -207,7 +209,7 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
               <select
                 :value="task.assigneeName || ''"
                 @change="(e) => handleReassign(task, (e.target as HTMLSelectElement).value)"
-                class="bg-slate-900 border border-slate-800 text-[9px] rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-violet-500"
+                class="bg-white border-1.5 border-black text-[9px] font-bold rounded px-1.5 py-0.5 text-black focus:outline-none shadow-[1px_1px_0px_#000]"
               >
                 <option value="" disabled>Alihkan...</option>
                 <option
@@ -221,16 +223,16 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
             </div>
 
             <!-- Footer Action -->
-            <div class="flex items-center justify-between pt-1 text-[11px] text-slate-400">
-              <span class="text-[10px] text-slate-500 truncate max-w-[140px]" :title="task.senderName">
+            <div class="flex items-center justify-between pt-1 text-[11px] font-bold text-black/70">
+              <span class="text-[10px] text-black/60 truncate max-w-[140px]" :title="task.senderName">
                 Dari: {{ task.senderName }}
               </span>
               <button
                 @click="taskStore.updateStatus(task.id, 'in_progress')"
-                class="text-[10px] font-semibold text-violet-400 hover:text-violet-300 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity"
+                class="text-[10px] font-black text-black bg-[#C4B5FD] hover:bg-[#A78BFA] px-2 py-0.5 rounded border border-black shadow-[1.5px_1.5px_0px_#000] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 transition-all"
               >
                 <span>Mulai</span>
-                <ArrowRight class="h-3 w-3" />
+                <ArrowRight class="h-3 w-3 stroke-[2.5]" />
               </button>
             </div>
           </div>
@@ -238,56 +240,56 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
       </div>
 
       <!-- Column 2: IN PROGRESS -->
-      <div class="flex flex-col bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden">
-        <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+      <div class="flex flex-col bg-[#FFFDF5] border-3 border-black rounded-2xl overflow-hidden shadow-[4px_4px_0px_#000]">
+        <div class="p-3.5 border-b-3 border-black bg-[#BAE6FD] flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-cyan-400"></span>
-            <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Sedang Dikerjakan</h3>
+            <span class="h-3 w-3 rounded-full bg-[#0284C7] border-1.5 border-black"></span>
+            <h3 class="text-xs font-black text-black uppercase tracking-wider">Sedang Dikerjakan</h3>
           </div>
-          <span class="text-xs font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md">
+          <span class="text-xs font-mono font-black px-2 py-0.5 bg-white border-2 border-black text-black rounded-md shadow-[1px_1px_0px_#000]">
             {{ taskStore.inProgressTasks.length }}
           </span>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
-          <div v-if="taskStore.inProgressTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+          <div v-if="taskStore.inProgressTasks.length === 0" class="py-12 text-center text-black/50 text-xs font-bold italic">
             Belum ada tugas yang sedang aktif.
           </div>
 
           <div
             v-for="task in taskStore.inProgressTasks"
             :key="task.id"
-            class="p-3.5 rounded-xl bg-slate-950/80 border border-cyan-500/20 hover:border-cyan-500/40 transition-all space-y-2.5 shadow-sm group"
+            class="p-3.5 rounded-xl bg-white border-2 border-black hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 transition-all space-y-2.5 shadow-[3px_3px_0px_#000] group"
           >
             <div class="flex items-center justify-between">
-              <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionBadge(task.divisi)]">
+              <span :class="['text-[9px] uppercase px-2 py-0.5 rounded', getDivisionBadge(task.divisi)]">
                 {{ task.divisi }}
               </span>
               <div class="flex items-center gap-1.5">
-                <span :class="['text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border', getPriorityBadge(task.prioritas)]">
+                <span :class="['text-[9px] uppercase px-1.5 py-0.5 rounded', getPriorityBadge(task.prioritas)]">
                   {{ task.prioritas }}
                 </span>
                 <button
                   @click="deleteTask(task.id)"
-                  class="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  class="text-black/60 hover:text-[#E11D48] opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                   title="Hapus Tugas"
                 >
-                  <Trash2 class="h-3 w-3" />
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            <p class="text-xs text-slate-200 font-medium leading-snug">
+            <p class="text-xs text-black font-black leading-snug">
               {{ task.deskripsi }}
             </p>
 
             <!-- Stakeholder Assignment Pill -->
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
-              <div class="flex items-center gap-1.5 text-slate-400">
-                <span class="h-5 w-5 rounded-md bg-cyan-600/20 text-cyan-300 font-bold flex items-center justify-center text-[9px]">
+            <div class="flex items-center justify-between pt-2 border-t-2 border-black/10 text-[10px]">
+              <div class="flex items-center gap-1.5 text-black">
+                <span class="h-5 w-5 rounded bg-[#BAE6FD] text-black font-black border border-black flex items-center justify-center text-[9px]">
                   {{ (task.assigneeName || 'U').slice(0, 1).toUpperCase() }}
                 </span>
-                <span class="font-semibold text-cyan-400 truncate max-w-[120px]">
+                <span class="font-black text-black truncate max-w-[120px]">
                   {{ task.assigneeName || 'Belum Ditugaskan' }}
                 </span>
               </div>
@@ -296,7 +298,7 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
               <select
                 :value="task.assigneeName || ''"
                 @change="(e) => handleReassign(task, (e.target as HTMLSelectElement).value)"
-                class="bg-slate-900 border border-slate-800 text-[9px] rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-cyan-500"
+                class="bg-white border-1.5 border-black text-[9px] font-bold rounded px-1.5 py-0.5 text-black focus:outline-none shadow-[1px_1px_0px_#000]"
               >
                 <option value="" disabled>Alihkan...</option>
                 <option
@@ -309,22 +311,22 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
               </select>
             </div>
 
-            <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px] text-slate-400">
+            <div class="flex items-center justify-between pt-1 border-t-2 border-black/10 text-[11px] font-bold">
               <button
                 @click="taskStore.updateStatus(task.id, 'todo')"
-                class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5"
+                class="text-[10px] text-black bg-white hover:bg-neutral-100 px-2 py-0.5 rounded border border-black shadow-[1px_1px_0px_#000] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5"
                 title="Kembalikan ke Todo"
               >
-                <ArrowLeft class="h-3 w-3" />
+                <ArrowLeft class="h-3 w-3 stroke-[2.5]" />
                 <span>Todo</span>
               </button>
 
               <button
                 @click="taskStore.updateStatus(task.id, 'done')"
-                class="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                class="text-[10px] font-black text-black bg-[#86EFAC] hover:bg-[#4ADE80] px-2 py-0.5 rounded border border-black shadow-[1.5px_1.5px_0px_#000] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5"
               >
                 <span>Selesai</span>
-                <CheckCircle2 class="h-3 w-3" />
+                <CheckCircle2 class="h-3 w-3 stroke-[2.5]" />
               </button>
             </div>
           </div>
@@ -332,61 +334,61 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
       </div>
 
       <!-- Column 3: DONE -->
-      <div class="flex flex-col bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden">
-        <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+      <div class="flex flex-col bg-[#FFFDF5] border-3 border-black rounded-2xl overflow-hidden shadow-[4px_4px_0px_#000]">
+        <div class="p-3.5 border-b-3 border-black bg-[#BBF7D0] flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-            <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Selesai (Done)</h3>
+            <span class="h-3 w-3 rounded-full bg-[#16A34A] border-1.5 border-black"></span>
+            <h3 class="text-xs font-black text-black uppercase tracking-wider">Selesai (Done)</h3>
           </div>
-          <span class="text-xs font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md">
+          <span class="text-xs font-mono font-black px-2 py-0.5 bg-white border-2 border-black text-black rounded-md shadow-[1px_1px_0px_#000]">
             {{ taskStore.doneTasks.length }}
           </span>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
-          <div v-if="taskStore.doneTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+          <div v-if="taskStore.doneTasks.length === 0" class="py-12 text-center text-black/50 text-xs font-bold italic">
             Belum ada tugas selesai.
           </div>
 
           <div
             v-for="task in taskStore.doneTasks"
             :key="task.id"
-            class="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 hover:border-emerald-500/40 transition-all space-y-2.5 shadow-sm group opacity-85 hover:opacity-100"
+            class="p-3.5 rounded-xl bg-white border-2 border-black hover:shadow-[5px_5px_0px_#000] transition-all space-y-2.5 shadow-[3px_3px_0px_#000] group opacity-90 hover:opacity-100"
           >
             <div class="flex items-center justify-between">
-              <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionBadge(task.divisi)]">
+              <span :class="['text-[9px] uppercase px-2 py-0.5 rounded', getDivisionBadge(task.divisi)]">
                 {{ task.divisi }}
               </span>
               <div class="flex items-center gap-1.5">
-                <span class="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border border-black bg-[#86EFAC] text-black shadow-[1px_1px_0px_#000]">
                   Selesai
                 </span>
                 <button
                   @click="deleteTask(task.id)"
-                  class="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                  class="text-black/60 hover:text-[#E11D48] opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                   title="Hapus Tugas"
                 >
-                  <Trash2 class="h-3 w-3" />
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            <p class="text-xs text-slate-300 font-medium leading-snug line-through opacity-80">
+            <p class="text-xs text-black/60 font-bold leading-snug line-through">
               {{ task.deskripsi }}
             </p>
 
             <!-- Stakeholder Assigned -->
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
-              <span class="text-emerald-400 font-medium flex items-center gap-1">
-                <Check class="h-3 w-3" />
-                Diselesaikan oleh: {{ task.assigneeName || 'Tim' }}
+            <div class="flex items-center justify-between pt-2 border-t-2 border-black/10 text-[10px]">
+              <span class="text-black font-black flex items-center gap-1">
+                <Check class="h-3.5 w-3.5 stroke-[3] text-[#16A34A]" />
+                Oleh: {{ task.assigneeName || 'Tim' }}
               </span>
               <button
                 @click="taskStore.updateStatus(task.id, 'todo')"
-                class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                class="text-[10px] text-black bg-white hover:bg-neutral-100 px-2 py-0.5 rounded border border-black shadow-[1px_1px_0px_#000] flex items-center gap-1 active:translate-x-0.5 active:translate-y-0.5 font-bold"
                 title="Buka kembali ke Todo"
               >
-                <RefreshCw class="h-2.5 w-2.5" />
+                <RefreshCw class="h-3 w-3" />
                 <span>Buka Kembali</span>
               </button>
             </div>
@@ -395,47 +397,62 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
       </div>
     </div>
 
-    <!-- Modal: Tambah Tugas Manual -->
+    <!-- Modal: Tambah Tugas Manual (Neobrutalism) -->
     <div
       v-if="showAddTaskModal"
-      class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      class="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
     >
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-        <h3 class="text-sm font-bold text-white">Tambah Tugas Baru ke Kanban</h3>
-        <p class="text-xs text-slate-400">Buat tugas dan tugaskan ke stakeholder organisasi</p>
+      <div class="bg-white border-3 border-black rounded-2xl p-6 max-w-md w-full space-y-4 shadow-[6px_6px_0px_#000]">
+        <h3 class="text-base font-black text-black">Tambah Tugas Baru ke Kanban</h3>
+        <p class="text-xs font-bold text-black/60">Buat tugas dan tugaskan ke stakeholder organisasi</p>
 
         <div class="space-y-3 pt-2">
           <div class="space-y-1">
-            <label class="text-xs font-medium text-slate-300">Deskripsi Tugas</label>
+            <label class="text-xs font-black text-black">Deskripsi Tugas</label>
             <textarea
               v-model="newTaskForm.deskripsi"
               rows="3"
               placeholder="Jelaskan aksi spesifik yang perlu dikerjakan..."
-              class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+              class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl p-3 text-xs text-black font-bold focus:outline-none focus:shadow-[3px_3px_0px_#000] shadow-[2px_2px_0px_#000]"
             ></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
-              <label class="text-xs font-medium text-slate-300">Divisi</label>
-              <select
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-black text-black">Divisi</label>
+                <button
+                  type="button"
+                  @click="isCustomDivision = !isCustomDivision"
+                  class="text-[10px] font-black text-black underline hover:text-amber-600 cursor-pointer"
+                >
+                  {{ isCustomDivision ? 'Pilih dari List' : '+ Divisi Baru' }}
+                </button>
+              </div>
+
+              <input
+                v-if="isCustomDivision"
                 v-model="newTaskForm.divisi"
-                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500 capitalize"
+                type="text"
+                placeholder="Ketik divisi baru (Marketing, dll)..."
+                class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl px-3 py-2 text-xs text-black font-bold focus:outline-none shadow-[2px_2px_0px_#000]"
+              />
+              <select
+                v-else
+                v-model="newTaskForm.divisi"
+                class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl px-3 py-2 text-xs text-black font-bold focus:outline-none capitalize shadow-[2px_2px_0px_#000]"
               >
-                <option value="backend">Backend</option>
-                <option value="frontend">Frontend</option>
-                <option value="desain">Desain</option>
-                <option value="qa">QA Testing</option>
-                <option value="devops">DevOps</option>
-                <option value="general">General</option>
+                <option v-for="d in stakeholderStore.divisions" :key="d.id" :value="d.id">
+                  {{ d.label }}
+                </option>
               </select>
             </div>
 
             <div class="space-y-1">
-              <label class="text-xs font-medium text-slate-300">Prioritas</label>
+              <label class="text-xs font-black text-black">Prioritas</label>
               <select
                 v-model="newTaskForm.prioritas"
-                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500 capitalize"
+                class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl px-3 py-2 text-xs text-black font-bold focus:outline-none capitalize shadow-[2px_2px_0px_#000]"
               >
                 <option value="tinggi">Tinggi</option>
                 <option value="sedang">Sedang</option>
@@ -446,10 +463,10 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
-              <label class="text-xs font-medium text-slate-300">Tugaskan ke Stakeholder</label>
+              <label class="text-xs font-black text-black">Tugaskan ke Stakeholder</label>
               <select
                 v-model="newTaskForm.assigneeName"
-                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl px-3 py-2 text-xs text-black font-bold focus:outline-none shadow-[2px_2px_0px_#000]"
               >
                 <option value="">Pilih Stakeholder...</option>
                 <option
@@ -463,27 +480,27 @@ function handleReassign(task: TaskItem, newAssigneeName: string) {
             </div>
 
             <div class="space-y-1">
-              <label class="text-xs font-medium text-slate-300">Target Deadline</label>
+              <label class="text-xs font-black text-black">Target Deadline</label>
               <input
                 v-model="newTaskForm.deadline"
                 type="text"
                 placeholder="Besok, 17:00"
-                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                class="w-full bg-[#FFFDF5] border-2 border-black rounded-xl px-3 py-2 text-xs text-black font-bold focus:outline-none shadow-[2px_2px_0px_#000]"
               />
             </div>
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+        <div class="flex items-center justify-end gap-3 pt-4 border-t-2 border-black/10">
           <button
             @click="showAddTaskModal = false"
-            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold transition-all"
+            class="px-4 py-2 rounded-xl bg-white hover:bg-neutral-100 text-black text-xs font-black border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all"
           >
             Batal
           </button>
           <button
             @click="handleCreateTask"
-            class="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all shadow-md shadow-violet-600/30"
+            class="px-4 py-2 rounded-xl bg-[#FFE600] hover:bg-[#FACC15] text-black text-xs font-black border-2 border-black shadow-[3px_3px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all"
           >
             Simpan ke Board
           </button>

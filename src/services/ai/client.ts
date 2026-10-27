@@ -111,7 +111,8 @@ export class UniversalAIClient {
     text: string,
     provider: AIProviderConfig,
     stakeholders?: Stakeholder[],
-    senderName?: string
+    senderName?: string,
+    vaultContext?: string
   ): Promise<TaskDecompositionResult> {
     // 1. If running inside Tauri native desktop, execute via Rust Core
     if (this.isTauri()) {
@@ -132,6 +133,9 @@ export class UniversalAIClient {
       let dynamicPrompt = SYSTEM_DECOMPOSITION_PROMPT;
       if (senderName) {
         dynamicPrompt += `\nPENGIRIM PESAN: ${senderName}\n`;
+      }
+      if (vaultContext && vaultContext.trim()) {
+        dynamicPrompt += `\n\nREFERENSI PENGETAHUAN KNOWLEDGE VAULT:\n${vaultContext}\n(Jika relevan, sertakan referensi dokumen ini secara natural pada ringkasan atau ai_relay_briefing)\n`;
       }
       if (stakeholders && stakeholders.length > 0) {
         let dir = '\n\nBerikut adalah direktori Stakeholder & Anggota Tim Perusahaan:\n';

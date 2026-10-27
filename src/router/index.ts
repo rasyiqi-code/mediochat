@@ -5,12 +5,16 @@ import VaultView from '@/views/VaultView.vue';
 import DevicesView from '@/views/DevicesView.vue';
 import SettingsView from '@/views/SettingsView.vue';
 import TeamView from '@/views/TeamView.vue';
+import ReportsView from '@/views/ReportsView.vue';
+import ThingsMatterView from '@/views/ThingsMatterView.vue';
 
 const routes = [
   { path: '/', redirect: '/chat' },
   { path: '/chat', name: 'chat', component: ChatView },
   { path: '/board', name: 'board', component: BoardView },
   { path: '/team', name: 'team', component: TeamView },
+  { path: '/reports', name: 'reports', component: ReportsView },
+  { path: '/things-matter', name: 'things-matter', component: ThingsMatterView },
   { path: '/vault', name: 'vault', component: VaultView },
   { path: '/devices', name: 'devices', component: DevicesView },
   { path: '/settings', name: 'settings', component: SettingsView },

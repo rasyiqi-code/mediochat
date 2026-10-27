@@ -2,7 +2,7 @@
 import { useRoute, useRouter } from 'vue-router';
 import { 
   MessageSquare, Kanban, Users, FolderKey, Wifi, Settings, 
-  Mic, Radio, ShieldCheck
+  Mic, Radio, ShieldCheck, BarChart3, Flame
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
 import { useDeviceStore } from '@/stores/useDeviceStore';
@@ -23,6 +23,8 @@ const navItems = [
   { path: '/chat', label: 'Chat Universal', icon: MessageSquare, badge: null },
   { path: '/board', label: 'Kanban Tugas', icon: Kanban, badge: 'AI' },
   { path: '/team', label: 'Tim & Stakeholder', icon: Users, badge: `${stakeholderStore.stakeholders.length}` },
+  { path: '/reports', label: 'Daily Reports', icon: BarChart3, badge: 'NEW' },
+  { path: '/things-matter', label: 'Things That Matter', icon: Flame, badge: '5W1H' },
   { path: '/vault', label: 'Knowledge Vault', icon: FolderKey, badge: null },
   { path: '/devices', label: 'Radar P2P', icon: Wifi, badge: `${deviceStore.devices.filter(d => d.isOnline).length}` },
   { path: '/settings', label: 'Pengaturan', icon: Settings, badge: null },
@@ -51,65 +53,71 @@ async function togglePtt() {
 </script>
 
 <template>
-  <div class="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
-    <!-- Desktop Sidebar -->
-    <aside class="w-64 flex-shrink-0 flex flex-col justify-between border-r border-slate-800/80 bg-slate-900/60 backdrop-blur-xl select-none">
-      <!-- Top Branding -->
-      <div class="p-5 border-b border-slate-800/60">
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Radio class="h-5 w-5 text-white animate-pulse" />
+  <div class="flex h-screen w-screen overflow-hidden bg-[#FAF8F5] text-black font-sans">
+    <!-- Desktop Sidebar (Neobrutalism) -->
+    <aside class="w-64 flex-shrink-0 flex flex-col justify-between border-r-3 border-black bg-[#FFFDF5] select-none">
+      <!-- Top Branding: exactly h-16 border-b-3 border-black to align with content header -->
+      <div class="h-16 px-4 border-b-3 border-black flex items-center justify-between bg-white shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="h-9 w-9 rounded-xl bg-[#FFE600] border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_#000] shrink-0">
+            <Radio class="h-4.5 w-4.5 text-black stroke-[2.5]" />
           </div>
           <div>
-            <h1 class="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-              MedioChat
-              <span class="text-[10px] font-semibold uppercase px-1.5 py-0.2 bg-violet-500/20 text-violet-400 rounded border border-violet-500/30">
+            <h1 class="font-black text-xs tracking-tight text-black flex items-center gap-1.5 leading-none">
+              <span>MedioChat</span>
+              <span class="text-[9px] font-black uppercase px-1 py-0.2 bg-[#C4B5FD] text-black rounded border border-black shadow-[1px_1px_0px_#000]">
                 P2P
               </span>
             </h1>
-            <p class="text-[11px] text-slate-400">Team AI Bridge</p>
+            <p class="text-[10px] font-bold text-black/60 leading-none mt-1">Team AI Bridge</p>
           </div>
-        </div>
-
-        <!-- Connection Badge -->
-        <div class="mt-4 p-2.5 rounded-lg bg-slate-800/40 border border-slate-800 flex items-center justify-between text-xs">
-          <div class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span class="text-slate-300 font-medium text-[11px]">LAN Mesh: Aktif</span>
-          </div>
-          <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-            {{ deviceStore.devices.filter(d => d.isOnline).length }} peers
-          </span>
         </div>
       </div>
 
+      <!-- Connection Badge Widget (Inside sidebar content, below the aligned header line) -->
+      <div class="px-3 pt-3">
+        <router-link
+          to="/devices"
+          class="p-2.5 rounded-xl bg-white hover:bg-[#FEF08A] border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-between text-xs cursor-pointer block transition-all"
+          title="Klik untuk membuka Radar LAN P2P"
+        >
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#22C55E] border border-black"></span>
+            </span>
+            <span class="text-black font-black text-[11px]">LAN Mesh: Aktif</span>
+          </div>
+          <span class="text-[10px] font-mono font-black text-black bg-[#86EFAC] border-1.5 border-black px-1.5 py-0.5 rounded shadow-[1px_1px_0px_#000]">
+            {{ deviceStore.devices.filter(d => d.isOnline).length }} peers
+          </span>
+        </router-link>
+      </div>
+
       <!-- Nav Items -->
-      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
         <button
           v-for="item in navItems"
           :key="item.path"
           @click="router.push(item.path)"
           :class="[
-            'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all group',
+            'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all group font-black',
             route.path === item.path
-              ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              ? 'bg-[#FFE600] text-black border-2 border-black shadow-[3px_3px_0px_#000] -translate-y-0.5'
+              : 'text-black border-2 border-transparent hover:border-black hover:bg-black/5 hover:shadow-[2px_2px_0px_#000]'
           ]"
         >
           <div class="flex items-center gap-3">
-            <component :is="item.icon" class="h-4 w-4" />
+            <component :is="item.icon" class="h-4 w-4 stroke-[2.5]" />
             <span>{{ item.label }}</span>
           </div>
           <span
             v-if="item.badge"
             :class="[
-              'text-[10px] px-1.5 py-0.5 rounded-md font-semibold',
+              'text-[10px] px-1.5 py-0.5 rounded font-black border-1.5 border-black shadow-[1px_1px_0px_#000]',
               route.path === item.path
-                ? 'bg-white/20 text-white'
-                : 'bg-slate-800 text-slate-300 border border-slate-700/60'
+                ? 'bg-black text-white'
+                : 'bg-[#FF6B6B] text-black'
             ]"
           >
             {{ item.badge }}
@@ -118,61 +126,61 @@ async function togglePtt() {
       </nav>
 
       <!-- Active Profile Mini Widget -->
-      <div class="px-4 py-2 border-t border-slate-800/60 bg-slate-900/30">
+      <div class="p-3 border-t-3 border-black bg-[#FAF8F5]">
         <div
           @click="router.push('/team')"
-          class="p-2 rounded-xl bg-slate-800/40 hover:bg-slate-800 border border-slate-700/60 hover:border-violet-500/40 flex items-center justify-between cursor-pointer transition-all group"
+          class="p-2.5 rounded-xl bg-white hover:bg-[#FEF08A] border-2 border-black shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000] flex items-center justify-between cursor-pointer transition-all group"
           title="Klik untuk membuka direktori tim & ganti profil aktif"
         >
           <div class="flex items-center gap-2.5 min-w-0">
-            <div class="h-7 w-7 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div class="h-8 w-8 rounded-lg bg-[#C4B5FD] text-black font-black text-xs flex items-center justify-center flex-shrink-0 border-2 border-black shadow-[1px_1px_0px_#000]">
               {{ stakeholderStore.currentUser.name.slice(0, 2).toUpperCase() }}
             </div>
             <div class="min-w-0">
-              <div class="text-[11px] font-semibold text-white truncate group-hover:text-violet-300 transition-colors">
+              <div class="text-[11px] font-black text-black truncate">
                 {{ stakeholderStore.currentUser.name }}
               </div>
-              <div class="text-[9px] text-slate-400 truncate leading-tight">
+              <div class="text-[9px] font-bold text-black/60 truncate leading-tight">
                 {{ stakeholderStore.currentUser.role }}
               </div>
             </div>
           </div>
-          <span class="text-[9px] text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+          <span class="text-[10px] font-black text-black bg-[#FFE600] px-1.5 py-0.5 rounded border border-black shadow-[1px_1px_0px_#000] opacity-0 group-hover:opacity-100 transition-opacity">
             Ganti
           </span>
         </div>
       </div>
 
       <!-- Bottom PTT Quick Action -->
-      <div class="p-4 border-t border-slate-800/60 space-y-3">
-        <div class="flex items-center justify-between text-[11px] text-slate-400">
+      <div class="p-4 border-t-3 border-black space-y-3 bg-[#FFFDF5]">
+        <div class="flex items-center justify-between text-[11px] font-bold text-black">
           <span class="flex items-center gap-1.5">
-            <ShieldCheck class="h-3.5 w-3.5 text-violet-400" />
+            <ShieldCheck class="h-3.5 w-3.5 stroke-[2.5]" />
             E2EE Enkripsi
           </span>
-          <kbd class="px-1.5 py-0.5 bg-slate-800 text-[10px] rounded border border-slate-700 font-mono text-slate-300">
+          <kbd class="px-1.5 py-0.5 bg-white text-[10px] rounded border-2 border-black font-mono font-black shadow-[1px_1px_0px_#000]">
             {{ settingStore.globalHotkey }}
           </kbd>
         </div>
 
-        <!-- Push to Talk Mic Button -->
+        <!-- Push to Talk Mic Button (Neobrutalism) -->
         <button
           @click="togglePtt"
           :class="[
-            'w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-all shadow-lg',
+            'w-full py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all border-2 border-black neo-btn',
             chatStore.isRecording
-              ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse shadow-rose-600/40'
-              : 'bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-750 hover:border-violet-500/50'
+              ? 'bg-[#FF4D4D] text-white shadow-[3px_3px_0px_#000] animate-pulse'
+              : 'bg-[#FFE600] hover:bg-[#FACC15] text-black shadow-[3px_3px_0px_#000]'
           ]"
         >
-          <Mic class="h-4 w-4" :class="{ 'animate-bounce': chatStore.isRecording }" />
+          <Mic class="h-4 w-4 stroke-[2.5]" :class="{ 'animate-bounce': chatStore.isRecording }" />
           <span>{{ chatStore.isRecording ? `Merekam (${chatStore.recordingDuration}s)...` : 'Bicara (Push-to-Talk)' }}</span>
         </button>
       </div>
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#FAF8F5]">
       <router-view />
     </main>
   </div>

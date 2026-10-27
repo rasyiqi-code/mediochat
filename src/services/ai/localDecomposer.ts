@@ -62,8 +62,8 @@ export function decomposeLocally(
     }
   }
 
-  // 3. Check Division Keywords
-  const divisionKeywords: Record<Division, string[]> = {
+  // 3. Check Division Keywords & Dynamic Stakeholder Domains
+  const divisionKeywords: Record<string, string[]> = {
     desain: ['desain', 'design', 'ui', 'ux', 'figma', 'mockup', 'wireframe', 'aset', 'icon', 'logo', 'layout', 'visual'],
     backend: ['backend', 'api', 'database', 'db', 'query', 'sql', 'postgres', 'server', 'auth', 'endpoint', 'tabel', 'skema', 'service', 'grpc'],
     frontend: ['frontend', 'ui component', 'vue', 'react', 'css', 'halaman', 'tampilan', 'form', 'responsive', 'komponen', 'web'],
@@ -77,6 +77,31 @@ export function decomposeLocally(
     if (keywords.some((kw) => lower.includes(kw))) {
       matchedDivision = div as Division;
       break;
+    }
+  }
+
+  // Also check dynamically against custom stakeholder divisions, roles, and skills
+  if (!matchedDivision) {
+    for (const s of stakeholders) {
+      const divLower = s.division.toLowerCase();
+      if (divLower && lower.includes(divLower)) {
+        matchedDivision = s.division;
+        if (!targetStakeholder) targetStakeholder = s;
+        break;
+      }
+      // Check role keywords
+      const roleWords = s.role.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      if (roleWords.some((rw) => lower.includes(rw))) {
+        matchedDivision = s.division;
+        if (!targetStakeholder) targetStakeholder = s;
+        break;
+      }
+      // Check skills
+      if (s.skills && s.skills.some((sk) => lower.includes(sk.toLowerCase()))) {
+        matchedDivision = s.division;
+        if (!targetStakeholder) targetStakeholder = s;
+        break;
+      }
     }
   }
 

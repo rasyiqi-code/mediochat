@@ -40,12 +40,56 @@ export function useAICoordinator() {
       const lowerText = text.toLowerCase().trim();
       const isCasual = ['halo', 'hai', 'pagi', 'selamat pagi', 'siang', 'malam', 'tes', 'test', 'ping'].includes(lowerText);
 
-      // 1. Send to AI with Stakeholder Directory and Sender Identity
+      // 0. Contextual Knowledge Vault Citation (RAG)
+      const matchedCitations: { id: string; name: string; snippet?: string }[] = [];
+      let vaultContext = '';
+      try {
+        const rawVault = localStorage.getItem('mediochat_vault_docs_v1');
+        if (rawVault) {
+          const docs = JSON.parse(rawVault);
+          if (Array.isArray(docs) && docs.length > 0) {
+            const queryWords = lowerText
+              .replace(/[^\w\s]/g, ' ')
+              .split(/\s+/)
+              .filter(w => w.length >= 3 && !['dan', 'atau', 'yang', 'untuk', 'pada', 'tolong', 'siap', 'dong', 'bisa', 'buat', 'ini', 'itu'].includes(w));
+            
+            if (queryWords.length > 0) {
+              const scoredDocs = docs.map((doc: any) => {
+                let score = 0;
+                const docText = `${doc.name} ${doc.category || ''} ${doc.summary || ''} ${doc.content || ''}`.toLowerCase();
+                for (const word of queryWords) {
+                  if (docText.includes(word)) score += 1;
+                  if ((doc.name || '').toLowerCase().includes(word)) score += 2;
+                }
+                return { doc, score };
+              }).filter(item => item.score > 0)
+                .sort((a, b) => b.score - a.score);
+
+              if (scoredDocs.length > 0) {
+                const top = scoredDocs.slice(0, 2);
+                vaultContext = top.map(item => `Dokumen [${item.doc.name}] (Kategori: ${item.doc.category}): ${item.doc.summary || (item.doc.content || '').slice(0, 200)}...`).join('\n');
+                top.forEach(item => {
+                  matchedCitations.push({
+                    id: item.doc.id,
+                    name: item.doc.name,
+                    snippet: item.doc.summary ? item.doc.summary.slice(0, 150) : (item.doc.content || '').slice(0, 150),
+                  });
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Vault context lookup warning:', err);
+      }
+
+      // 1. Send to AI with Stakeholder Directory, Sender Identity, and Vault Context
       const result = await aiClient.decomposeTask(
         text,
         activeProvider,
         stakeholderStore.stakeholders,
-        senderDisplayName
+        senderDisplayName,
+        vaultContext
       );
 
       const timestamp = formatTime();
@@ -118,6 +162,7 @@ export function useAICoordinator() {
         transcription: isVoice ? text : undefined,
         summary: result.ringkasan,
         tasks: generatedTasks,
+        vaultCitations: matchedCitations.length > 0 ? matchedCitations : undefined,
       });
 
       // 6. Broadcast over P2P mesh

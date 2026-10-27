@@ -6,37 +6,64 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const DYNAMIC_PALETTES = [
+  'bg-[#86EFAC]', // mint
+  'bg-[#7DD3FC]', // sky blue
+  'bg-[#F472B6]', // pink
+  'bg-[#FDE047]', // yellow
+  'bg-[#C084FC]', // purple
+  'bg-[#FB7185]', // rose
+  'bg-[#FED7AA]', // peach
+  'bg-[#A7F3D0]', // emerald
+  'bg-[#DDD6FE]', // violet
+  'bg-[#BAE6FD]', // light blue
+];
+
 /**
- * Returns Tailwind badge classes for a given team division
+ * Returns Neobrutalism badge classes for a given team division (built-in or dynamic)
  */
-export function getDivisionBadge(divisi: Division | string): string {
-  switch (divisi) {
+export function getDivisionBadge(divisi?: Division | string): string {
+  if (!divisi) {
+    return 'bg-[#E2E8F0] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
+  }
+
+  const normalized = divisi.toLowerCase().trim();
+  switch (normalized) {
     case 'backend':
-      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      return 'bg-[#86EFAC] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     case 'frontend':
-      return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
+      return 'bg-[#7DD3FC] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     case 'desain':
-      return 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30';
+      return 'bg-[#F472B6] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     case 'qa':
-      return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      return 'bg-[#FDE047] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     case 'devops':
-      return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-    default:
-      return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+      return 'bg-[#C084FC] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
+    case 'general':
+      return 'bg-[#E2E8F0] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
+    default: {
+      // Deterministic palette pick for any dynamic division (marketing, sales, finance, etc.)
+      let hash = 0;
+      for (let i = 0; i < normalized.length; i++) {
+        hash = normalized.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const colorClass = DYNAMIC_PALETTES[Math.abs(hash) % DYNAMIC_PALETTES.length];
+      return `${colorClass} text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]`;
+    }
   }
 }
 
 /**
- * Returns Tailwind badge classes for task priority levels
+ * Returns Neobrutalism badge classes for task priority levels
  */
 export function getPriorityBadge(priority: TaskPriority | string): string {
   switch (priority) {
     case 'tinggi':
-      return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      return 'bg-[#FB7185] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     case 'sedang':
-      return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      return 'bg-[#FDE047] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
     default:
-      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      return 'bg-[#86EFAC] text-black border-2 border-black font-black shadow-[1.5px_1.5px_0px_#000]';
   }
 }
 
