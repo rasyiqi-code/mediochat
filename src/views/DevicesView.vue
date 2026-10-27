@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { 
   RefreshCw, Laptop, Monitor, Smartphone, 
-  ShieldCheck, Info
+  ShieldCheck, Info, Wifi
 } from 'lucide-vue-next';
 import { useDeviceStore } from '@/stores/useDeviceStore';
 
@@ -58,7 +58,7 @@ function getDeviceIcon(type: string) {
               </span>
             </div>
             <p class="text-[11px] font-mono text-slate-400 mt-0.5">
-              IP: {{ deviceStore.localDevice.ipAddress }}:{{ deviceStore.localDevice.port }} (Service: _mediochat._tcp.local)
+              IP: {{ deviceStore.localDevice.ipAddress }}:{{ deviceStore.localDevice.port }} (Service: _mediochat._udp.local)
             </p>
           </div>
         </div>
@@ -80,7 +80,21 @@ function getDeviceIcon(type: string) {
           <span class="text-[11px] text-slate-500">Koneksi P2P Direct Socket (Tanpa Cloud Server)</span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <!-- Empty State for Peers -->
+        <div
+          v-if="deviceStore.devices.length === 0"
+          class="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800/60"
+        >
+          <div class="h-11 w-11 rounded-2xl bg-violet-600/10 text-violet-400 flex items-center justify-center">
+            <Wifi class="h-5 w-5" />
+          </div>
+          <h4 class="text-xs font-bold text-slate-300">Belum Ada Rekan Tim Terdeteksi di Wi-Fi</h4>
+          <p class="text-[11px] text-slate-500 max-w-sm">
+            Pastikan komputer rekan tim Anda membuka MedioChat di jaringan Wi-Fi/LAN yang sama. Klik tombol 'Pindai Ulang' di atas untuk menyiarkan sinyal.
+          </p>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <div
             v-for="device in deviceStore.devices"
             :key="device.id"

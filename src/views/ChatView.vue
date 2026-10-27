@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  Send, Sparkles, Clock, Mic, Square, Loader2, ArrowRight
+  Send, Sparkles, Clock, Mic, Square, Loader2, ArrowRight, MessageSquare
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
 import { useSettingStore } from '@/stores/useSettingStore';
@@ -101,6 +101,20 @@ async function stopMicRecording() {
 
     <!-- Chat Messages Stream -->
     <div class="flex-1 overflow-y-auto p-6 space-y-6">
+      <!-- Empty State -->
+      <div
+        v-if="chatStore.messages.length === 0"
+        class="h-full flex flex-col items-center justify-center py-20 text-center space-y-3"
+      >
+        <div class="h-12 w-12 rounded-2xl bg-violet-600/10 text-violet-400 flex items-center justify-center">
+          <MessageSquare class="h-6 w-6" />
+        </div>
+        <h4 class="text-xs font-bold text-slate-300">Belum Ada Percakapan Tim</h4>
+        <p class="text-[11px] text-slate-500 max-w-sm">
+          Ketik pesan instruksi sprint di bawah, atau tekan tombol mikrofon Push-to-Talk (PTT) untuk mendiktekan tugas ke AI.
+        </p>
+      </div>
+
       <div
         v-for="msg in chatStore.messages"
         :key="msg.id"

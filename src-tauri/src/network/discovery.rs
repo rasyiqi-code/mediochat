@@ -25,6 +25,17 @@ struct PresencePacket {
     timestamp: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalNodeInfo {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "ipAddress")]
+    pub ip_address: String,
+    pub port: u16,
+    pub os: String,
+    pub status: String,
+}
+
 pub struct PeerDiscoveryService {
     peers: Arc<Mutex<HashMap<String, PeerDevice>>>,
     local_id: String,
@@ -138,6 +149,34 @@ impl PeerDiscoveryService {
             list
         } else {
             Vec::new()
+        }
+    }
+
+    pub fn get_local_node_info(&self) -> LocalNodeInfo {
+        let name = self
+            .local_name
+            .lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_else(|_| "Workstation".to_string());
+
+        let ip = match UdpSocket::bind("0.0.0.0:0") {
+            Ok(s) => match s.connect("8.8.8.8:80") {
+                Ok(_) => s
+                    .local_addr()
+                    .map(|a| a.ip().to_string())
+                    .unwrap_or_else(|_| "127.0.0.1".to_string()),
+                Err(_) => "127.0.0.1".to_string(),
+            },
+            Err(_) => "127.0.0.1".to_string(),
+        };
+
+        LocalNodeInfo {
+            id: self.local_id.clone(),
+            name,
+            ip_address: ip,
+            port: DISCOVERY_PORT,
+            os: std::env::consts::OS.to_string(),
+            status: "online".to_string(),
         }
     }
 }

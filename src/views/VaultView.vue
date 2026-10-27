@@ -24,36 +24,6 @@ const isSummarizingAI = ref(false);
 
 const STORAGE_VAULT_KEY = 'mediochat_vault_docs_v1';
 
-const defaultFiles: VaultItem[] = [
-  {
-    id: 'f-1',
-    name: 'SOP_Backend_Deploy_v2.md',
-    category: 'Backend',
-    sizeBytes: 1024 * 1024 * 1.8,
-    uploadedAt: '24 Okt 2026',
-    summary: 'Panduan deployment staging, env key setup, dan rollback procedure SQLite/PostgreSQL.',
-    content: 'Panduan deployment: 1. Jalankan migrasi DB, 2. Verifikasi port service, 3. Restart daemon.',
-  },
-  {
-    id: 'f-2',
-    name: 'UI_Design_System_DarkTheme.md',
-    category: 'Desain',
-    sizeBytes: 1024 * 512,
-    uploadedAt: '25 Okt 2026',
-    summary: 'Komponen tombol, badge, color palette violet, dan typography Inter.',
-    content: 'Design system tokens: bg-slate-950, accent violet-600, border slate-800.',
-  },
-  {
-    id: 'f-3',
-    name: 'Perjanjian_SLA_Tim_Q4.md',
-    category: 'Manajemen',
-    sizeBytes: 1024 * 256,
-    uploadedAt: '26 Okt 2026',
-    summary: 'Target SLA respons bug kritis 2 jam, review PR maksimal 24 jam.',
-    content: 'Ketentuan SLA Q4: Critical bugs triage < 2h, PR review SLA < 24h.',
-  },
-];
-
 const savedVault = (() => {
   try {
     const raw = localStorage.getItem(STORAGE_VAULT_KEY);
@@ -63,7 +33,7 @@ const savedVault = (() => {
   }
 })();
 
-const files = ref<VaultItem[]>(savedVault || defaultFiles);
+const files = ref<VaultItem[]>(savedVault || []);
 
 function persist() {
   localStorage.setItem(STORAGE_VAULT_KEY, JSON.stringify(files.value));
@@ -193,6 +163,20 @@ import { formatBytes } from '@/lib/utils';
 
     <!-- Document List -->
     <div class="flex-1 p-6 overflow-y-auto space-y-3">
+      <!-- Empty State -->
+      <div
+        v-if="filteredFiles.length === 0"
+        class="flex flex-col items-center justify-center py-16 px-4 text-center space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800/60"
+      >
+        <div class="h-12 w-12 rounded-2xl bg-violet-600/10 text-violet-400 flex items-center justify-center">
+          <FileText class="h-6 w-6" />
+        </div>
+        <h4 class="text-xs font-bold text-slate-300">Knowledge Vault Masih Kosong</h4>
+        <p class="text-[11px] text-slate-500 max-w-sm">
+          Belum ada dokumen atau SOP teknis yang tersimpan. Klik tombol "+ Tambah Dokumen / SOP" di atas untuk mengindeks catatan tim pertama Anda.
+        </p>
+      </div>
+
       <div
         v-for="file in filteredFiles"
         :key="file.id"

@@ -2,52 +2,30 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { TaskItem, TaskStatus } from '@/types';
 
+const STORAGE_TASK_KEY = 'mediochat_tasks_v1';
+
 export const useTaskStore = defineStore('task', () => {
-  const tasks = ref<TaskItem[]>([
-    {
-      id: 't-1',
-      divisi: 'backend',
-      deskripsi: 'Selesaikan endpoint migrasi database PostgreSQL ke SQLite lokal',
-      prioritas: 'tinggi',
-      status: 'todo',
-      deadline: 'Besok, 17:00',
-      senderName: 'Budi (PM)',
-      timestamp: '10:15',
-    },
-    {
-      id: 't-2',
-      divisi: 'frontend',
-      deskripsi: 'Sesuaikan form onboarding (padding & validasi input)',
-      prioritas: 'sedang',
-      status: 'in_progress',
-      deadline: 'Lusa, 12:00',
-      senderName: 'Budi (PM)',
-      timestamp: '10:15',
-    },
-    {
-      id: 't-3',
-      divisi: 'desain',
-      deskripsi: 'Buat icon mockup dan color palette dark mode untuk desktop UI',
-      prioritas: 'sedang',
-      status: 'done',
-      deadline: 'Kemarin',
-      senderName: 'Citra (Designer)',
-      timestamp: '08:45',
-    },
-    {
-      id: 't-4',
-      divisi: 'qa',
-      deskripsi: 'Uji koneksi audio PTT mikrofon 16kHz di OS Ubuntu dan Windows',
-      prioritas: 'tinggi',
-      status: 'todo',
-      deadline: 'Jumat, 15:00',
-      senderName: 'Andi (Lead)',
-      timestamp: '11:00',
-    },
-  ]);
+  const saved = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_TASK_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const tasks = ref<TaskItem[]>(saved || []);
 
   const filterDivisi = ref<string>('all');
   const searchQuery = ref<string>('');
+
+  function persist() {
+    try {
+      localStorage.setItem(STORAGE_TASK_KEY, JSON.stringify(tasks.value));
+    } catch (e) {
+      console.warn('Gagal menyimpan task ke storage:', e);
+    }
+  }
 
   const filteredTasks = computed(() => {
     return tasks.value.filter((t) => {
@@ -68,11 +46,23 @@ export const useTaskStore = defineStore('task', () => {
     const task = tasks.value.find((t) => t.id === taskId);
     if (task) {
       task.status = newStatus;
+      persist();
     }
   }
 
   function addTask(task: TaskItem) {
     tasks.value.unshift(task);
+    persist();
+  }
+
+  function deleteTask(taskId: string) {
+    tasks.value = tasks.value.filter((t) => t.id !== taskId);
+    persist();
+  }
+
+  function clearTasks() {
+    tasks.value = [];
+    persist();
   }
 
   return {
@@ -85,5 +75,7 @@ export const useTaskStore = defineStore('task', () => {
     doneTasks,
     updateStatus,
     addTask,
+    deleteTask,
+    clearTasks,
   };
 });

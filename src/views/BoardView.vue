@@ -134,6 +134,10 @@ function deleteTask(id: string) {
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
+          <div v-if="taskStore.todoTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+            Belum ada tugas di kolom ini.
+          </div>
+
           <div
             v-for="task in taskStore.todoTasks"
             :key="task.id"
@@ -191,6 +195,10 @@ function deleteTask(id: string) {
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
+          <div v-if="taskStore.inProgressTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+            Belum ada tugas yang sedang aktif.
+          </div>
+
           <div
             v-for="task in taskStore.inProgressTasks"
             :key="task.id"
@@ -253,6 +261,9 @@ function deleteTask(id: string) {
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-3">
+          <div v-if="taskStore.doneTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
+            Belum ada tugas selesai.
+          </div>
           <div
             v-for="task in taskStore.doneTasks"
             :key="task.id"

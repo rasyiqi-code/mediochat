@@ -2,57 +2,31 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { ChatMessage } from '@/types';
 
+const STORAGE_CHAT_KEY = 'mediochat_messages_v1';
+
 export const useChatStore = defineStore('chat', () => {
-  const messages = ref<ChatMessage[]>([
-    {
-      id: 'm1',
-      platform: 'local',
-      senderName: 'Andi (Backend Lead)',
-      senderId: 'user-1',
-      isSelf: false,
-      content: 'Server staging auth API sudah di-update ke versi terbaru ya guys.',
-      messageType: 'text',
-      timestamp: '09:30',
-    },
-    {
-      id: 'm2',
-      platform: 'telegram',
-      senderName: 'Budi (Project Manager)',
-      senderId: 'user-2',
-      isSelf: false,
-      content: 'Instruksi sprint hari ini: tim backend tolong siapkan endpoint migrasi database, dan frontend sesuaikan form onboarding.',
-      messageType: 'voice_processed',
-      timestamp: '10:15',
-      transcription: 'Halo semuanya, instruksi sprint hari ini: tolong backend fokus selesaikan endpoint migrasi database PostgreSQL, dan frontend langsung sesuaikan form onboarding agar padding dan validasinya pas. Target selesai lusa ya.',
-      summary: 'Instruksi tugas sprint: Backend fokus migrasi database PostgreSQL, Frontend sesuaikan form onboarding.',
-      tasks: [
-        {
-          id: 't-1',
-          divisi: 'backend',
-          deskripsi: 'Selesaikan endpoint migrasi database PostgreSQL',
-          prioritas: 'tinggi',
-          status: 'todo',
-          deadline: 'Besok, 17:00',
-          senderName: 'Budi (PM)',
-          timestamp: '10:15',
-        },
-        {
-          id: 't-2',
-          divisi: 'frontend',
-          deskripsi: 'Sesuaikan form onboarding (padding & validasi input)',
-          prioritas: 'sedang',
-          status: 'in_progress',
-          deadline: 'Lusa, 12:00',
-          senderName: 'Budi (PM)',
-          timestamp: '10:15',
-        },
-      ],
-    },
-  ]);
+  const saved = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_CHAT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const messages = ref<ChatMessage[]>(saved || []);
 
   const isRecording = ref(false);
   const recordingDuration = ref(0);
   let recordTimer: any = null;
+
+  function persist() {
+    try {
+      localStorage.setItem(STORAGE_CHAT_KEY, JSON.stringify(messages.value));
+    } catch (e) {
+      console.warn('Gagal menyimpan chat ke storage:', e);
+    }
+  }
 
   function startRecording() {
     isRecording.value = true;
@@ -72,6 +46,17 @@ export const useChatStore = defineStore('chat', () => {
 
   function addMessage(msg: ChatMessage) {
     messages.value.push(msg);
+    persist();
+  }
+
+  function deleteMessage(messageId: string) {
+    messages.value = messages.value.filter((m) => m.id !== messageId);
+    persist();
+  }
+
+  function clearMessages() {
+    messages.value = [];
+    persist();
   }
 
   return {
@@ -81,5 +66,7 @@ export const useChatStore = defineStore('chat', () => {
     startRecording,
     stopRecording,
     addMessage,
+    deleteMessage,
+    clearMessages,
   };
 });

@@ -3,7 +3,7 @@ pub mod network;
 pub mod storage;
 
 use ai::{AIClient, AIProviderConfig, TaskDecompositionResult, TestConnectionResult};
-use network::{PeerDevice, PeerDiscoveryService};
+use network::{LocalNodeInfo, PeerDevice, PeerDiscoveryService};
 use storage::StorageManager;
 use tauri::State;
 
@@ -62,6 +62,11 @@ fn broadcast_lan_presence(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_local_node_info(state: State<'_, AppState>) -> Result<LocalNodeInfo, String> {
+    Ok(state.peer_service.get_local_node_info())
+}
+
+#[tauri::command]
 fn load_app_config(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     state.storage.load_config()
 }
@@ -92,6 +97,7 @@ pub fn run() {
             ai_test_connection,
             get_lan_peers,
             broadcast_lan_presence,
+            get_local_node_info,
             load_app_config,
             save_app_config,
         ])

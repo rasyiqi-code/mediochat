@@ -4,42 +4,12 @@ import type { PeerDevice } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
 
 export const useDeviceStore = defineStore('device', () => {
-  const devices = ref<PeerDevice[]>([
-    {
-      id: 'dev-1',
-      name: 'Laptop Budi (MacBook Air)',
-      deviceType: 'laptop',
-      ipAddress: '192.168.1.104',
-      port: 42424,
-      isOnline: true,
-      isPaired: true,
-      lastSeen: 'Baru saja',
-    },
-    {
-      id: 'dev-2',
-      name: 'PC Desktop Andi (Ubuntu 24.04)',
-      deviceType: 'desktop',
-      ipAddress: '192.168.1.112',
-      port: 42424,
-      isOnline: true,
-      isPaired: true,
-      lastSeen: '1 menit lalu',
-    },
-    {
-      id: 'dev-3',
-      name: 'HP Citra (Android Phone)',
-      deviceType: 'phone',
-      ipAddress: '192.168.1.125',
-      port: 42424,
-      isOnline: false,
-      isPaired: false,
-      lastSeen: '1 jam lalu',
-    },
-  ]);
+  // Real discovered peers start empty
+  const devices = ref<PeerDevice[]>([]);
 
   const localDevice = ref({
-    name: 'Workstation Utama (Linux)',
-    ipAddress: '192.168.1.108',
+    name: 'Workstation (Mendeteksi...)',
+    ipAddress: '127.0.0.1',
     port: 42424,
     status: 'online',
     lanDiscoveryEnabled: true,
@@ -47,13 +17,32 @@ export const useDeviceStore = defineStore('device', () => {
 
   const isScanning = ref(false);
 
+  async function fetchLocalInfo() {
+    try {
+      if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+        const info = await invoke<any>('get_local_node_info');
+        if (info) {
+          localDevice.value = {
+            name: info.name,
+            ipAddress: info.ipAddress || '127.0.0.1',
+            port: info.port || 42424,
+            status: info.status || 'online',
+            lanDiscoveryEnabled: true,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal mengambil info node lokal:', e);
+    }
+  }
+
   async function triggerScan() {
     isScanning.value = true;
     try {
       if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
         await invoke('broadcast_lan_presence');
         const rustPeers = await invoke<any[]>('get_lan_peers');
-        if (rustPeers && rustPeers.length > 0) {
+        if (rustPeers && Array.isArray(rustPeers)) {
           for (const rp of rustPeers) {
             const exists = devices.value.find((d) => d.id === rp.id);
             if (exists) {
@@ -90,10 +79,14 @@ export const useDeviceStore = defineStore('device', () => {
     }
   }
 
+  // Initialize real local node info
+  fetchLocalInfo();
+
   return {
     devices,
     localDevice,
     isScanning,
+    fetchLocalInfo,
     triggerScan,
     togglePair,
   };
