@@ -51,13 +51,13 @@ Sistem multi-user didesain agar AI Coordinator mengenali personil di dalam organ
 ## 3. Fitur Universal Team Feed & Kanban Board
 
 ### 3.1. Universal Team Feed: Human → AI → Human Relay (`/chat`)
-* **Paradigma Komunikasi Human → AI → Human**: Komunikasi chat tidak terjadi secara langsung mentah antar manusia, melainkan selalu melalui perantara AI Coordinator. AI membaca pesan/suara pengirim dan berbicara langsung kepada penerima dengan format kontekstual: *"Budi butuh data X dari Andi sebelum besok sore..."*.
-* **Tampilan Chat Alami & Percakapan Luwes (Natural Conversational Flow)**:
-  - **Single Unified Stream**: Menghindari kotak bertingkat kaku (*nested boxes*). Setiap pesan ditampilkan sebagai gelembung/baris percakapan alami berestetika modern.
-  - **Identitas Bersih Tanpa Redundansi**: Avatar pengirim dengan aksen gradien divisi, pill jabatan tunggal tanpa pengulangan nama, dan timestamp monospaced.
-  - **Penanganan Percakapan Luwes (Casual vs Task)**: Sapaan santai ("halo", "selamat pagi") disampaikan secara alami dan ramah tanpa membuat tugas palsu (*fake tasks*).
+* **Paradigma Komunikasi Human → AI → Human**: Pengguna tidak berbicara langsung secara mentah dengan rekan tim, melainkan memberikan instruksi/kebutuhan kepada **MedioAI Coordinator**. AI kemudian menjadi pembawa pesan (*messenger*) resmi yang mengabarkan intisari kebutuhan kepada penerima: *"@Dimas Wicaksono, Andi minta tolong untuk siapkan UI-nya nih."*.
+* **Tampilan Chat Alami & Kejelasan Peran (AI Coordinator as Messenger)**:
+  - **MedioAI sebagai Avatar Pembicara**: Setiap kartu pesan menampilkan avatar **MedioAI Coordinator** (dengan aksen violet glow), memperjelas bahwa kalimat di dalam feed adalah suara AI asisten yang sedang menyampaikan amanat/kebutuhan.
+  - **Rute Relay Transparan**: Header kartu mencantumkan jalur pengabaran yang eksplisit: `MedioAI Coordinator • Meneruskan dari [Pengirim] (Role) ➔ [Penerima]`.
+  - **Identitas Pengguna Jelas di Input Bar**: Bar input bawah menampilkan konteks `Bicara sebagai: [Pengguna] ➔ Beri tahu ke AI Coordinator untuk diteruskan ke tim`.
+  - **Transparansi Pesan Asal**: Teks asli yang diketik atau diucapkan pengirim tetap ditampilkan secara diskret dan ringkas di bawah kalimat AI (*"Pesan asal: ..."*).
   - **Aksi Kanban Minimalis**: Jika pesan mengandung instruksi kerja nyata, pil aksi terkompresi disematkan di bawah pesan lengkap dengan target assignee dan tautan instan ke `/board`.
-  - **Transparansi Audio**: Untuk pesan suara Push-to-Talk, kutipan transkrip suara asli ditampilkan secara diskret di bawah teks briefing AI.
 * **Manajemen Feed Bersih**:
   - Tombol hapus satuan pada setiap pesan (muncul saat *hover*).
   - Tombol **Bersihkan Feed** untuk mereset riwayat obrolan di workstation lokal kapan saja.
