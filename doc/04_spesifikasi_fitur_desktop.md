@@ -50,9 +50,13 @@ Sistem multi-user didesain agar AI Coordinator mengenali personil di dalam organ
 
 ## 3. Fitur Universal Team Feed & Kanban Board
 
-### 3.1. Universal Team Feed (`/chat`)
-* **Agregasi Multi-Platform**: Menampilkan percakapan yang masuk dari Local P2P, Telegram, WhatsApp, dan Slack.
-* **AI Decomposed Task Card**: Menampilkan visualisasi kartu tugas terurai lengkap dengan badge divisi, target deadline, dan stakeholder yang ditugaskan.
+### 3.1. Universal Team Feed: Human → AI → Human Relay (`/chat`)
+* **Paradigma Komunikasi Human → AI → Human**: Komunikasi chat tidak terjadi secara langsung mentah antar manusia, melainkan selalu melalui perantara AI Coordinator. AI membaca pesan/suara pengirim dan berbicara langsung kepada penerima dengan format kontekstual: *"Budi butuh data X dari Andi sebelum jam 17:00..."*.
+* **Kartu AI Relay Dispatch**:
+  - **Suara Primer AI (AI Briefing)**: Kalimat sintesis dari AI yang menjelaskan esensi kebutuhan atau instruksi pengirim kepada tim.
+  - **Identitas Konteks**: Label pengirim asli, badge personil sasaran (*Target Stakeholder*), badge intensi (`Permintaan Data`, `Instruksi Tugas`, `Update Status`, `Butuh Konfirmasi`), dan tingkat urgensi (`Segera`, `Normal`).
+  - **Tugas Terurai (Kanban Sync)**: Daftar tugas aksi yang otomatis dipetakan ke divisi dan stakeholder terkait.
+  - **Kutipan Verbatim**: Kotak transkrip asli pengirim untuk verifikasi transparansi.
 * **Manajemen Feed Bersih**:
   - Tombol **Bersihkan Feed** di header untuk membersihkan riwayat percakapan.
   - Tombol hapus pesan per-item pada saat hover.

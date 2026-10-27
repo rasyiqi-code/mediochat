@@ -41,9 +41,13 @@ export interface ChatMessage {
   senderRole?: string;
   senderDivision?: Division;
   isSelf: boolean;
-  content: string;
-  messageType: 'text' | 'voice_processed';
+  content: string; // Teks asli dari human pengirim
+  messageType: 'text' | 'voice_processed' | 'ai_mediated';
   timestamp: string;
+  aiRelayBriefing?: string; // Ucapan AI kepada human penerima ("Budi butuh data X dari Andi...")
+  intentType?: 'request_data' | 'task_instruction' | 'status_update' | 'confirmation_needed' | 'general_info';
+  targetStakeholders?: string[];
+  urgency?: 'segera' | 'normal' | 'santai';
   transcription?: string;
   summary?: string;
   tasks?: TaskItem[];

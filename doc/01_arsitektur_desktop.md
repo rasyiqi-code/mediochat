@@ -9,6 +9,7 @@ Berbeda dengan aplikasi web di dalam browser yang terisolasi (*sandboxed*), apli
 2. **Offline-First & Local Memory**: Memiliki database lokal (SQLite dengan ekstensi vector) dan storage lokal persisten sehingga pencarian dokumen, data stakeholder, dan memori chat tetap dapat diakses meski tanpa internet.
 3. **Komunikasi Antar Perangkat Mandiri**: Kemampuan membuka raw TCP/UDP socket, peer-to-peer (P2P), dan direct LAN discovery untuk bertukar data secara langsung antar perangkat di jaringan lokal tanpa bergantung 100% pada server cloud.
 4. **AI Berbasis Pengetahuan Stakeholder**: AI Coordinator tidak hanya memecah tugas secara generik, melainkan membaca **Direktori Stakeholder Perusahaan** (nama, peran, divisi, dan spesialisasi keahlian teknis) untuk menugaskan sprint secara otomatis ke personil yang tepat.
+5. **Paradigma Komunikasi Human → AI → Human**: Komunikasi tim di MedioChat **tidak terjadi langsung mentah antar manusia (Human-to-Human)**, melainkan melalui **AI Relay Mediator**. Pengirim (Human A) menyampaikan pesan/suara ke AI, dan AI menyintesis serta berbicara kepada penerima (Human B / Tim) seolah asisten eksekutif berkata: *"Budi (PM) butuh data X dari Andi (Backend) sebelum lusa..."*, mengeliminasi tumpukan pesan bertele-tele dan menyajikan konteks aksi yang instan.
 
 ---
 

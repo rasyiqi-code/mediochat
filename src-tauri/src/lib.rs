@@ -19,10 +19,11 @@ async fn ai_decompose_task(
     provider: AIProviderConfig,
     text: String,
     stakeholders: Option<Vec<Stakeholder>>,
+    sender_name: Option<String>,
 ) -> Result<TaskDecompositionResult, String> {
     state
         .ai_client
-        .decompose_task(&text, &provider, stakeholders.as_deref())
+        .decompose_task(&text, &provider, stakeholders.as_deref(), sender_name.as_deref())
         .await
 }
 

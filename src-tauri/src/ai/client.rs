@@ -6,8 +6,12 @@ use serde_json::{json, Value};
 use std::str::FromStr;
 use std::time::Instant;
 
-const SYSTEM_DECOMPOSITION_PROMPT: &str = r#"Anda adalah AI Coordinator cerdas untuk sistem MedioChat (Team AI Bridge).
-Tugas Anda adalah membaca pesan atau instruksi kerja dan memecahnya menjadi daftar tugas terstruktur untuk tim software engineering dan stakeholder perusahaan.
+const SYSTEM_DECOMPOSITION_PROMPT: &str = r#"Anda adalah AI Relay & Executive Coordinator untuk sistem MedioChat (Team AI Bridge).
+PRINSIP UTAMA: Komunikasi di MedioChat BUKAN Human-to-Human langsung, melainkan HUMAN -> AI -> HUMAN.
+Tugas Anda adalah membaca pesan dari pengirim (Human A) dan menyampaikan intisari kebutuhan kepada penerima (Human B / Tim) seolah-olah Anda adalah asisten eksekutif cerdas yang memberitahu:
+- Contoh: "Budi (PM) butuh data skema database PostgreSQL dari Andi (Backend) sebelum besok sore."
+- Contoh: "Citra (Frontend) mengabarkan bahwa form onboarding sudah selesai di-update dan siap diuji oleh QA (Fani)."
+- Contoh: "Andi (Backend) menginformasikan bahwa auth API staging sudah di-update dan siap dicoba oleh tim Frontend."
 
 Pilihlah salah satu divisi yang paling tepat untuk setiap tugas:
 - "backend" (API, database, server, otentikasi, logic bisnis)
@@ -18,9 +22,15 @@ Pilihlah salah satu divisi yang paling tepat untuk setiap tugas:
 - "general" (Tugas umum, koordinasi, dokumentasi, rapat)
 
 Prioritas harus salah satu dari: "tinggi", "sedang", "rendah".
+Tipe intent: "request_data" | "task_instruction" | "status_update" | "confirmation_needed" | "general_info".
+Tingkat urgensi: "segera" | "normal" | "santai".
 
 KEMBALIKAN HANYA VALID JSON MURNI TANPA KOMENTAR DAN TANPA TEKS LAIN. Format persis seperti ini:
 {
+  "ai_relay_briefing": "Gaya bicara AI kepada tim/penerima yang menjelaskan siapa pengirimnya dan apa yang ia butuhkan/instruksikan",
+  "intent_type": "request_data",
+  "target_stakeholders": ["Nama personil penerima atau divisi target"],
+  "urgency": "segera",
   "ringkasan": "Ringkasan ringkas instruksi kerja ini dalam 1-2 kalimat",
   "tanggal_deadline": "Besok, 17:00 / Lusa / tanggal spesifik atau null",
   "daftar_tugas": [
@@ -308,10 +318,17 @@ impl AIClient {
         text: &str,
         provider: &AIProviderConfig,
         stakeholders: Option<&[Stakeholder]>,
+        sender_name: Option<&str>,
     ) -> Result<TaskDecompositionResult, String> {
+        let sender_line = if let Some(sender) = sender_name {
+            format!("\nPENGIRIM PESAN: {}\n", sender)
+        } else {
+            String::new()
+        };
+
         let system_prompt = if let Some(team) = stakeholders {
             if !team.is_empty() {
-                let mut dir = String::from("\n\nBerikut adalah direktori Stakeholder & Anggota Tim Perusahaan:\n");
+                let mut dir = format!("{}\nBerikut adalah direktori Stakeholder & Anggota Tim Perusahaan:\n", sender_line);
                 for s in team {
                     let skills_str = s.skills.as_deref().map(|sk| sk.join(", ")).unwrap_or_default();
                     dir.push_str(&format!(
@@ -319,13 +336,13 @@ impl AIClient {
                         s.name, s.role, s.division, skills_str
                     ));
                 }
-                dir.push_str("\nINSTRUKSI PENUGASAN STAKEHOLDER:\nCocokkan setiap tugas dengan stakeholder di atas berdasarkan relevansi divisi dan keahliannya. Masukkan nama pada \"assignee_name\" dan jabatannya pada \"assignee_role\". Jika tidak ada yang cocok, gunakan null.\n");
+                dir.push_str("\nINSTRUKSI PENUGASAN & RELAY:\n1. Jelaskan pada \"ai_relay_briefing\" dengan nada bicara AI asisten: \"[Nama Pengirim] butuh data/mengabarkan [inti kebutuhan] kepada [Target Personil/Tim]...\"\n2. Cocokkan setiap tugas dengan stakeholder di atas berdasarkan relevansi divisi dan keahliannya. Masukkan nama pada \"assignee_name\" dan jabatannya pada \"assignee_role\". Jika tidak ada tugas teknis, \"daftar_tugas\" boleh kosong [].\n");
                 format!("{}\n{}", SYSTEM_DECOMPOSITION_PROMPT, dir)
             } else {
-                SYSTEM_DECOMPOSITION_PROMPT.to_string()
+                format!("{}\n{}", SYSTEM_DECOMPOSITION_PROMPT, sender_line)
             }
         } else {
-            SYSTEM_DECOMPOSITION_PROMPT.to_string()
+            format!("{}\n{}", SYSTEM_DECOMPOSITION_PROMPT, sender_line)
         };
 
         let raw_output = self
@@ -334,9 +351,24 @@ impl AIClient {
 
         let clean_json = self.extract_json_str(&raw_output);
         match serde_json::from_str::<TaskDecompositionResult>(clean_json) {
-            Ok(res) => Ok(res),
+            Ok(mut res) => {
+                if res.ai_relay_briefing.is_none() || res.ai_relay_briefing.as_deref() == Some("") {
+                    let fallback = if let Some(s) = sender_name {
+                        format!("{} menyampaikan: \"{}\"", s, text)
+                    } else {
+                        format!("Pesan masuk dari tim: \"{}\"", text)
+                    };
+                    res.ai_relay_briefing = Some(fallback);
+                }
+                Ok(res)
+            }
             Err(e) => {
                 eprintln!("JSON parse error on decomposition: {}. Raw: {}", e, raw_output);
+                let fallback_briefing = if let Some(s) = sender_name {
+                    format!("{} menginformasikan: \"{}\"", s, text)
+                } else {
+                    format!("Pesan dari tim: \"{}\"", text)
+                };
                 Ok(TaskDecompositionResult {
                     ringkasan: if text.len() > 120 { format!("{}...", &text[..120]) } else { text.to_string() },
                     tanggal_deadline: Some("Besok".to_string()),
@@ -348,6 +380,10 @@ impl AIClient {
                         assignee_name: None,
                         assignee_role: None,
                     }],
+                    ai_relay_briefing: Some(fallback_briefing),
+                    intent_type: Some("general_info".to_string()),
+                    target_stakeholders: Some(vec!["Semua Tim".to_string()]),
+                    urgency: Some("normal".to_string()),
                 })
             }
         }

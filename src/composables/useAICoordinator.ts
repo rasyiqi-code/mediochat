@@ -16,17 +16,17 @@ export function useAICoordinator() {
   const isProcessing = ref(false);
 
   /**
-   * Universal method to decompose an instruction (from voice or text)
-   * into structured tasks, add them to the Kanban board, log to chat feed,
-   * and broadcast over LAN P2P.
+   * Human -> AI -> Human Mediation Engine
+   * Every communication (voice or text) from a human is analyzed and synthesized
+   * by the AI Coordinator to brief recipient humans with context, intent, and actionable tasks.
    */
-  async function processTaskDecomposition(
+  async function mediateCommunication(
     rawText: string,
-    senderSource?: string,
-    isVoice: boolean = false
-  ): Promise<{ summary: string; tasks: TaskItem[] }> {
+    isVoice: boolean = false,
+    senderSource?: string
+  ) {
     const text = rawText.trim();
-    if (!text) throw new Error('Teks instruksi kosong');
+    if (!text) throw new Error('Pesan komunikasi kosong');
 
     isProcessing.value = true;
     try {
@@ -34,15 +34,18 @@ export function useAICoordinator() {
       const current = stakeholderStore.currentUser;
       const actualSender = senderSource || `${current.name} (${current.role})`;
 
-      // Pass registered stakeholders to AI
+      // 1. Send to AI with Stakeholder Directory and Sender Identity
       const result = await aiClient.decomposeTask(
         text,
         activeProvider,
-        stakeholderStore.stakeholders
+        stakeholderStore.stakeholders,
+        actualSender
       );
 
       const timestamp = formatTime();
-      const generatedTasks: TaskItem[] = result.daftar_tugas.map((t, idx) => {
+
+      // 2. Map Decomposed Tasks with Stakeholders
+      const generatedTasks: TaskItem[] = (result.daftar_tugas || []).map((t, idx) => {
         let matchedStakeholder = t.assignee_name
           ? stakeholderStore.findStakeholderByName(t.assignee_name)
           : undefined;
@@ -69,13 +72,19 @@ export function useAICoordinator() {
         };
       });
 
-      // 1. Add tasks to Kanban board
+      // 3. Add tasks to Kanban board
       for (const task of generatedTasks) {
         taskStore.addTask(task);
       }
 
-      // 2. Add processed message to Universal Feed
+      // 4. Default AI Relay briefing if AI did not provide one
+      const aiRelayBriefing =
+        result.ai_relay_briefing ||
+        `${actualSender} menyampaikan: "${text}"`;
+
       const messageId = `m-${Date.now()}`;
+
+      // 5. Add AI-mediated message to Universal Feed
       chatStore.addMessage({
         id: messageId,
         platform: 'local',
@@ -85,14 +94,18 @@ export function useAICoordinator() {
         senderDivision: current.division,
         isSelf: true,
         content: text,
-        messageType: 'voice_processed',
+        messageType: 'ai_mediated',
         timestamp,
+        aiRelayBriefing,
+        intentType: result.intent_type || 'general_info',
+        targetStakeholders: result.target_stakeholders || ['Semua Tim'],
+        urgency: result.urgency || 'normal',
         transcription: isVoice ? text : undefined,
         summary: result.ringkasan,
         tasks: generatedTasks,
       });
 
-      // 3. Broadcast to P2P peers via active network transport
+      // 6. Broadcast over P2P mesh
       const transport = getTransportService(settingStore.networkMode);
       transport.broadcastMessage({
         id: messageId,
@@ -100,13 +113,19 @@ export function useAICoordinator() {
         senderName: actualSender,
         type: 'task_update',
         payload: {
+          aiRelayBriefing,
+          intentType: result.intent_type || 'general_info',
+          targetStakeholders: result.target_stakeholders || ['Semua Tim'],
+          urgency: result.urgency || 'normal',
           summary: result.ringkasan,
           tasks: generatedTasks,
+          originalContent: text,
         },
         timestamp,
       }).catch((e) => console.warn('P2P broadcast note:', e));
 
       return {
+        aiRelayBriefing,
         summary: result.ringkasan,
         tasks: generatedTasks,
       };
@@ -116,43 +135,26 @@ export function useAICoordinator() {
   }
 
   /**
-   * Send a standard text chat message
+   * Process task decomposition (alias for mediateCommunication)
    */
-  function sendTextMessage(content: string, senderName?: string) {
-    const text = content.trim();
-    if (!text) return;
+  async function processTaskDecomposition(
+    rawText: string,
+    senderSource?: string,
+    isVoice: boolean = false
+  ) {
+    return mediateCommunication(rawText, isVoice, senderSource);
+  }
 
-    const current = stakeholderStore.currentUser;
-    const actualSender = senderName || `${current.name} (${current.role})`;
-    const timestamp = formatTime();
-    const messageId = `m-${Date.now()}`;
-
-    chatStore.addMessage({
-      id: messageId,
-      platform: 'local',
-      senderName: actualSender,
-      senderId: current.id,
-      senderRole: current.role,
-      senderDivision: current.division,
-      isSelf: true,
-      content: text,
-      messageType: 'text',
-      timestamp,
-    });
-
-    const transport = getTransportService(settingStore.networkMode);
-    transport.broadcastMessage({
-      id: messageId,
-      senderId: current.id,
-      senderName: actualSender,
-      type: 'chat',
-      payload: { text },
-      timestamp,
-    }).catch((e) => console.warn('P2P broadcast note:', e));
+  /**
+   * Send a text message (routed through AI mediation)
+   */
+  async function sendTextMessage(content: string, senderName?: string) {
+    return mediateCommunication(content, false, senderName);
   }
 
   return {
     isProcessing,
+    mediateCommunication,
     processTaskDecomposition,
     sendTextMessage,
   };

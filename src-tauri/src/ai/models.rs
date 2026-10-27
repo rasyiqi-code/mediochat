@@ -48,6 +48,10 @@ pub struct TaskDecompositionResult {
     pub ringkasan: String,
     pub tanggal_deadline: Option<String>,
     pub daftar_tugas: Vec<TaskDecompositionItem>,
+    pub ai_relay_briefing: Option<String>,
+    pub intent_type: Option<String>,
+    pub target_stakeholders: Option<Vec<String>>,
+    pub urgency: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
