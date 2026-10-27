@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  Send, Sparkles, Clock, Mic, Square, Loader2, ArrowRight, MessageSquare
+  Send, Sparkles, Clock, Mic, Square, Loader2, ArrowRight, MessageSquare, Trash2, User, CheckCircle2
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
 import { useSettingStore } from '@/stores/useSettingStore';
+import { useStakeholderStore } from '@/stores/useStakeholderStore';
 import { productionAudioRecorder } from '@/services/audio/recorder';
 import { useAICoordinator } from '@/composables/useAICoordinator';
 import { getDivisionBadge } from '@/lib/utils';
 
 const chatStore = useChatStore();
 const settingStore = useSettingStore();
+const stakeholderStore = useStakeholderStore();
 const { isProcessing: isDecomposing, processTaskDecomposition, sendTextMessage } = useAICoordinator();
 
 const inputText = ref('');
@@ -28,7 +30,7 @@ function handleSend() {
 async function handleDecomposeWithAI() {
   if (!inputText.value.trim() || isDecomposing.value) return;
   try {
-    await processTaskDecomposition(inputText.value, 'Saya (Local PC)', false);
+    await processTaskDecomposition(inputText.value);
     inputText.value = '';
   } catch (err: any) {
     console.error('Gagal dekomposisi:', err);
@@ -87,8 +89,19 @@ async function stopMicRecording() {
         <p class="text-xs text-slate-400">Pesan dan voice note dari semua platform tim teragregasi secara lokal</p>
       </div>
 
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-slate-400 mr-1">AI Aktif:</span>
+      <div class="flex items-center gap-2.5">
+        <!-- Active User Profile Indicator -->
+        <router-link
+          to="/team"
+          class="px-2.5 py-1 rounded-lg text-[11px] bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 flex items-center gap-1.5 transition-colors"
+          title="Klik untuk melihat atau mengganti profil stakeholder aktif"
+        >
+          <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-400 text-[10px]">Profil:</span>
+          <span class="font-semibold text-white truncate max-w-[120px]">{{ stakeholderStore.currentUser.name }}</span>
+        </router-link>
+
+        <!-- Active AI Provider Badge -->
         <router-link
           to="/settings"
           class="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-violet-500/10 text-violet-300 border border-violet-500/30 flex items-center gap-1.5 hover:bg-violet-500/20 transition-colors"
@@ -96,6 +109,17 @@ async function stopMicRecording() {
           <Sparkles class="h-3 w-3 text-violet-400" />
           <span>{{ settingStore.activeProvider.name }}: {{ settingStore.activeProvider.selectedModel }}</span>
         </router-link>
+
+        <!-- Clear Feed Action -->
+        <button
+          v-if="chatStore.messages.length > 0"
+          @click="chatStore.clearMessages()"
+          class="px-2.5 py-1 rounded-lg text-[11px] text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 flex items-center gap-1 transition-colors"
+          title="Bersihkan semua pesan dalam feed"
+        >
+          <Trash2 class="h-3 w-3" />
+          <span>Bersihkan Feed</span>
+        </button>
       </div>
     </header>
 
@@ -118,15 +142,27 @@ async function stopMicRecording() {
       <div
         v-for="msg in chatStore.messages"
         :key="msg.id"
-        :class="['flex flex-col', msg.isSelf ? 'items-end' : 'items-start']"
+        :class="['flex flex-col group relative', msg.isSelf ? 'items-end' : 'items-start']"
       >
-        <!-- Sender Name & Meta -->
+        <!-- Sender Name, Role & Meta -->
         <div class="flex items-center gap-2 mb-1.5 px-1">
           <span class="text-xs font-semibold text-slate-300">{{ msg.senderName }}</span>
+          <span v-if="msg.senderRole" class="text-[10px] text-violet-400 font-medium">
+            • {{ msg.senderRole }}
+          </span>
           <span class="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
             {{ msg.platform }}
           </span>
           <span class="text-[11px] text-slate-500">{{ msg.timestamp }}</span>
+
+          <!-- Delete single message button -->
+          <button
+            @click="chatStore.deleteMessage(msg.id)"
+            class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-0.5 rounded transition-all"
+            title="Hapus pesan ini"
+          >
+            <Trash2 class="h-3 w-3" />
+          </button>
         </div>
 
         <!-- Text Bubble -->
@@ -174,16 +210,16 @@ async function stopMicRecording() {
             Transkrip: "{{ msg.transcription }}"
           </div>
 
-          <!-- Decomposed Task Cards -->
+          <!-- Decomposed Task Cards with Stakeholder Assignment -->
           <div v-if="msg.tasks && msg.tasks.length" class="space-y-2 pt-1 border-t border-slate-800/60">
             <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">
-              Daftar Tugas yang Diekstrak AI ({{ msg.tasks.length }}):
+              Daftar Tugas yang Diekstrak & Dipetakan ke Stakeholder ({{ msg.tasks.length }}):
             </span>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div
                 v-for="task in msg.tasks"
                 :key="task.id"
-                class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between"
+                class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between space-y-2"
               >
                 <div class="space-y-1.5">
                   <div class="flex items-center justify-between">
@@ -198,6 +234,18 @@ async function stopMicRecording() {
                   <p class="text-xs text-slate-200 font-medium leading-snug">
                     {{ task.deskripsi }}
                   </p>
+                </div>
+
+                <!-- Stakeholder Assigned Badge -->
+                <div class="pt-1.5 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                  <span class="text-slate-500 flex items-center gap-1">
+                    <User class="h-3 w-3 text-slate-400" />
+                    <span>Ditugaskan:</span>
+                  </span>
+                  <span class="font-semibold text-emerald-400 flex items-center gap-1 truncate max-w-[130px]" :title="task.assigneeRole || ''">
+                    <CheckCircle2 class="h-2.5 w-2.5" />
+                    {{ task.assigneeName || 'Belum Ditugaskan' }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -233,6 +281,19 @@ async function stopMicRecording() {
 
     <!-- Bottom Input Bar -->
     <div class="p-4 border-t border-slate-800/80 bg-slate-900/60 backdrop-blur-md">
+      <!-- Active User Context Line -->
+      <div class="mb-2 px-1 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="flex items-center gap-1.5">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          <span>Mengirim sebagai:</span>
+          <span class="text-slate-200 font-semibold">{{ stakeholderStore.currentUser.name }}</span>
+          <span class="text-slate-500">({{ stakeholderStore.currentUser.role }})</span>
+        </span>
+        <router-link to="/team" class="text-violet-400 hover:text-violet-300 text-[10px] font-medium underline">
+          Ganti Profil Stakeholder
+        </router-link>
+      </div>
+
       <form @submit.prevent="handleSend" class="flex items-center gap-2.5">
         <!-- Push to talk mic button -->
         <button
@@ -242,7 +303,7 @@ async function stopMicRecording() {
             'h-10 w-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0',
             isRecording
               ? 'bg-rose-600 text-white animate-pulse'
-              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+              : 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
           ]"
           :title="isRecording ? 'Hentikan Rekaman' : 'Mulai Rekam Suara (PTT)'"
         >
@@ -275,7 +336,7 @@ async function stopMicRecording() {
         <button
           type="submit"
           :disabled="!inputText.trim()"
-          class="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all border border-slate-700 flex-shrink-0"
+          class="h-10 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 disabled:opacity-40 text-slate-200 font-semibold text-xs flex items-center gap-1.5 transition-all border border-slate-700 flex-shrink-0"
         >
           <Send class="h-3.5 w-3.5" />
           <span>Kirim</span>

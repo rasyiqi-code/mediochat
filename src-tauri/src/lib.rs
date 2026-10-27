@@ -2,7 +2,7 @@ pub mod ai;
 pub mod network;
 pub mod storage;
 
-use ai::{AIClient, AIProviderConfig, TaskDecompositionResult, TestConnectionResult};
+use ai::{AIClient, AIProviderConfig, Stakeholder, TaskDecompositionResult, TestConnectionResult};
 use network::{LocalNodeInfo, PeerDevice, PeerDiscoveryService};
 use storage::StorageManager;
 use tauri::State;
@@ -18,8 +18,12 @@ async fn ai_decompose_task(
     state: State<'_, AppState>,
     provider: AIProviderConfig,
     text: String,
+    stakeholders: Option<Vec<Stakeholder>>,
 ) -> Result<TaskDecompositionResult, String> {
-    state.ai_client.decompose_task(&text, &provider).await
+    state
+        .ai_client
+        .decompose_task(&text, &provider, stakeholders.as_deref())
+        .await
 }
 
 #[tauri::command]

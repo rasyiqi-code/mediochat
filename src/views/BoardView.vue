@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  CheckCircle2, ArrowRight, User, Plus, Search, Trash2, ArrowLeft, RefreshCw
+  CheckCircle2, ArrowRight, Plus, Search, Trash2, ArrowLeft, RefreshCw, Check
 } from 'lucide-vue-next';
 import { useTaskStore } from '@/stores/useTaskStore';
+import { useStakeholderStore } from '@/stores/useStakeholderStore';
 import type { Division, TaskItem, TaskPriority } from '@/types';
+import { getDivisionBadge, getPriorityBadge } from '@/lib/utils';
 
 const taskStore = useTaskStore();
+const stakeholderStore = useStakeholderStore();
 
 const divisions: { id: Division | 'all'; label: string }[] = [
   { id: 'all', label: 'Semua Divisi' },
@@ -24,19 +27,21 @@ const newTaskForm = ref<{
   deskripsi: string;
   prioritas: TaskPriority;
   deadline: string;
-  senderName: string;
+  assigneeName: string;
 }>({
   divisi: 'backend',
   deskripsi: '',
   prioritas: 'sedang',
   deadline: 'Besok, 17:00',
-  senderName: 'Saya (Manual)',
+  assigneeName: '',
 });
-
-import { getDivisionBadge, getPriorityBadge } from '@/lib/utils';
 
 function handleCreateTask() {
   if (!newTaskForm.value.deskripsi.trim()) return;
+
+  const current = stakeholderStore.currentUser;
+  const assigned = newTaskForm.value.assigneeName.trim() || current.name;
+  const matched = stakeholderStore.findStakeholderByName(assigned);
 
   const newTask: TaskItem = {
     id: `t-${Date.now()}`,
@@ -45,8 +50,11 @@ function handleCreateTask() {
     prioritas: newTaskForm.value.prioritas,
     status: 'todo',
     deadline: newTaskForm.value.deadline.trim() || 'Tidak ada',
-    senderName: newTaskForm.value.senderName,
+    senderName: `${current.name} (${current.role})`,
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    assigneeName: assigned,
+    assigneeRole: matched?.role || '',
+    assigneeId: matched?.id,
   };
 
   taskStore.addTask(newTask);
@@ -56,12 +64,17 @@ function handleCreateTask() {
     deskripsi: '',
     prioritas: 'sedang',
     deadline: 'Besok, 17:00',
-    senderName: 'Saya (Manual)',
+    assigneeName: '',
   };
 }
 
 function deleteTask(id: string) {
-  taskStore.tasks = taskStore.tasks.filter((t) => t.id !== id);
+  taskStore.deleteTask(id);
+}
+
+function handleReassign(task: TaskItem, newAssigneeName: string) {
+  const matched = stakeholderStore.findStakeholderByName(newAssigneeName);
+  taskStore.assignTask(task.id, newAssigneeName, matched?.role, matched?.id);
 }
 </script>
 
@@ -71,22 +84,37 @@ function deleteTask(id: string) {
     <header class="h-16 px-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40 backdrop-blur-md">
       <div>
         <h2 class="text-sm font-semibold text-white flex items-center gap-2">
-          <span>Kanban Tugas AI</span>
+          <span>Kanban Tugas AI & Multi-User</span>
           <span class="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 font-medium">
             {{ taskStore.filteredTasks.length }} Tugas
           </span>
         </h2>
-        <p class="text-xs text-slate-400">Daftar tugas terurai otomatis dari suara rapat dan koordinasi tim</p>
+        <p class="text-xs text-slate-400">Daftar tugas terurai otomatis dan terpetakan ke stakeholder organisasi</p>
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- Assignee Filter -->
+        <select
+          v-model="taskStore.filterAssignee"
+          class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+        >
+          <option value="all">Semua Stakeholder</option>
+          <option
+            v-for="s in stakeholderStore.stakeholders"
+            :key="s.id"
+            :value="s.name"
+          >
+            {{ s.name }} ({{ s.division }})
+          </option>
+        </select>
+
         <!-- Search Input -->
         <div class="relative">
           <Search class="h-3.5 w-3.5 text-slate-500 absolute left-3 top-2.5" />
           <input
             v-model="taskStore.searchQuery"
             type="text"
-            placeholder="Cari tugas..."
+            placeholder="Cari tugas atau personil..."
             class="bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 w-44"
           />
         </div>
@@ -101,9 +129,8 @@ function deleteTask(id: string) {
       </div>
     </header>
 
-    <!-- Division Filter Bar -->
-    <div class="px-6 py-2.5 border-b border-slate-800/60 bg-slate-900/20 flex items-center gap-2 overflow-x-auto">
-      <span class="text-[11px] text-slate-400 font-medium mr-1 flex-shrink-0">Filter Divisi:</span>
+    <!-- Division Filter Chips -->
+    <div class="px-6 py-2.5 border-b border-slate-800/60 bg-slate-950/40 flex items-center gap-2 overflow-x-auto">
       <button
         v-for="div in divisions"
         :key="div.id"
@@ -165,10 +192,38 @@ function deleteTask(id: string) {
               {{ task.deskripsi }}
             </p>
 
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[11px] text-slate-400">
-              <span class="flex items-center gap-1">
-                <User class="h-3 w-3 text-slate-500" />
-                {{ task.senderName }}
+            <!-- Stakeholder Assignment Pill -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+              <div class="flex items-center gap-1.5 text-slate-400">
+                <span class="h-5 w-5 rounded-md bg-violet-600/20 text-violet-300 font-bold flex items-center justify-center text-[9px]">
+                  {{ (task.assigneeName || 'U').slice(0, 1).toUpperCase() }}
+                </span>
+                <span class="font-semibold text-emerald-400 truncate max-w-[120px]">
+                  {{ task.assigneeName || 'Belum Ditugaskan' }}
+                </span>
+              </div>
+
+              <!-- Reassign Dropdown -->
+              <select
+                :value="task.assigneeName || ''"
+                @change="(e) => handleReassign(task, (e.target as HTMLSelectElement).value)"
+                class="bg-slate-900 border border-slate-800 text-[9px] rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-violet-500"
+              >
+                <option value="" disabled>Alihkan...</option>
+                <option
+                  v-for="s in stakeholderStore.stakeholders"
+                  :key="s.id"
+                  :value="s.name"
+                >
+                  {{ s.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+              <span class="text-[10px] text-slate-500 truncate max-w-[140px]" :title="task.senderName">
+                Dari: {{ task.senderName }}
               </span>
               <button
                 @click="taskStore.updateStatus(task.id, 'in_progress')"
@@ -226,7 +281,35 @@ function deleteTask(id: string) {
               {{ task.deskripsi }}
             </p>
 
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[11px] text-slate-400">
+            <!-- Stakeholder Assignment Pill -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+              <div class="flex items-center gap-1.5 text-slate-400">
+                <span class="h-5 w-5 rounded-md bg-cyan-600/20 text-cyan-300 font-bold flex items-center justify-center text-[9px]">
+                  {{ (task.assigneeName || 'U').slice(0, 1).toUpperCase() }}
+                </span>
+                <span class="font-semibold text-cyan-400 truncate max-w-[120px]">
+                  {{ task.assigneeName || 'Belum Ditugaskan' }}
+                </span>
+              </div>
+
+              <!-- Reassign Dropdown -->
+              <select
+                :value="task.assigneeName || ''"
+                @change="(e) => handleReassign(task, (e.target as HTMLSelectElement).value)"
+                class="bg-slate-900 border border-slate-800 text-[9px] rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="" disabled>Alihkan...</option>
+                <option
+                  v-for="s in stakeholderStore.stakeholders"
+                  :key="s.id"
+                  :value="s.name"
+                >
+                  {{ s.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px] text-slate-400">
               <button
                 @click="taskStore.updateStatus(task.id, 'todo')"
                 class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-0.5"
@@ -264,18 +347,18 @@ function deleteTask(id: string) {
           <div v-if="taskStore.doneTasks.length === 0" class="py-12 text-center text-slate-500 text-xs italic">
             Belum ada tugas selesai.
           </div>
+
           <div
             v-for="task in taskStore.doneTasks"
             :key="task.id"
-            class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/60 space-y-2 opacity-80 hover:opacity-100 transition-opacity group"
+            class="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 hover:border-emerald-500/40 transition-all space-y-2.5 shadow-sm group opacity-85 hover:opacity-100"
           >
             <div class="flex items-center justify-between">
               <span :class="['text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border', getDivisionBadge(task.divisi)]">
                 {{ task.divisi }}
               </span>
               <div class="flex items-center gap-1.5">
-                <span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-                  <CheckCircle2 class="h-3 w-3" />
+                <span class="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
                   Selesai
                 </span>
                 <button
@@ -288,15 +371,20 @@ function deleteTask(id: string) {
               </div>
             </div>
 
-            <p class="text-xs text-slate-400 line-through leading-snug">
+            <p class="text-xs text-slate-300 font-medium leading-snug line-through opacity-80">
               {{ task.deskripsi }}
             </p>
 
-            <div class="flex items-center justify-end pt-1">
+            <!-- Stakeholder Assigned -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+              <span class="text-emerald-400 font-medium flex items-center gap-1">
+                <Check class="h-3 w-3" />
+                Diselesaikan oleh: {{ task.assigneeName || 'Tim' }}
+              </span>
               <button
-                @click="taskStore.updateStatus(task.id, 'in_progress')"
-                class="text-[10px] text-slate-400 hover:text-cyan-400 flex items-center gap-1"
-                title="Buka kembali tugas ini"
+                @click="taskStore.updateStatus(task.id, 'todo')"
+                class="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                title="Buka kembali ke Todo"
               >
                 <RefreshCw class="h-2.5 w-2.5" />
                 <span>Buka Kembali</span>
@@ -314,7 +402,7 @@ function deleteTask(id: string) {
     >
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
         <h3 class="text-sm font-bold text-white">Tambah Tugas Baru ke Kanban</h3>
-        <p class="text-xs text-slate-400">Buat tugas manual untuk divisi tim</p>
+        <p class="text-xs text-slate-400">Buat tugas dan tugaskan ke stakeholder organisasi</p>
 
         <div class="space-y-3 pt-2">
           <div class="space-y-1">
@@ -356,14 +444,33 @@ function deleteTask(id: string) {
             </div>
           </div>
 
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-slate-300">Target Deadline</label>
-            <input
-              v-model="newTaskForm.deadline"
-              type="text"
-              placeholder="Besok, 17:00 / 28 Okt"
-              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
-            />
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-slate-300">Tugaskan ke Stakeholder</label>
+              <select
+                v-model="newTaskForm.assigneeName"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+              >
+                <option value="">Pilih Stakeholder...</option>
+                <option
+                  v-for="s in stakeholderStore.stakeholders"
+                  :key="s.id"
+                  :value="s.name"
+                >
+                  {{ s.name }} ({{ s.role }})
+                </option>
+              </select>
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-slate-300">Target Deadline</label>
+              <input
+                v-model="newTaskForm.deadline"
+                type="text"
+                placeholder="Besok, 17:00"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+              />
+            </div>
           </div>
         </div>
 

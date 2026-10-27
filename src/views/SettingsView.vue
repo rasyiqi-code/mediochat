@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { 
-  Key, Mic, Check, Radio, Plus, Trash2, Cpu, Globe, RefreshCw, Zap, Server, AlertCircle
+  Key, Mic, Check, Radio, Plus, Trash2, Cpu, Globe, RefreshCw, Zap, Server, AlertCircle, Users, Database
 } from 'lucide-vue-next';
 import { useSettingStore } from '@/stores/useSettingStore';
+import { useChatStore } from '@/stores/useChatStore';
+import { useTaskStore } from '@/stores/useTaskStore';
+import { useStakeholderStore } from '@/stores/useStakeholderStore';
 import { aiClient } from '@/services/ai/client';
 import type { AIProviderConfig, AIProviderType } from '@/services/ai/types';
 
 const settingStore = useSettingStore();
+const chatStore = useChatStore();
+const taskStore = useTaskStore();
+const stakeholderStore = useStakeholderStore();
 
 const newModelInput = ref('');
 const isTesting = ref(false);
@@ -421,6 +427,118 @@ function handleCreateProvider() {
           <kbd class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-violet-300 font-semibold">
             {{ settingStore.globalHotkey }}
           </kbd>
+        </div>
+      </div>
+
+      <!-- 6. Multi-User & Stakeholder Profile -->
+      <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/80 space-y-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center">
+              <Users class="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white">Profil Pengguna & Stakeholder Aktif</h3>
+              <p class="text-[11px] text-slate-400">Identitas yang akan dicantumkan pada setiap instruksi, chat feed, dan penugasan AI</p>
+            </div>
+          </div>
+          <router-link
+            to="/team"
+            class="px-3 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 text-xs font-semibold transition-all"
+          >
+            Kelola Direktori Tim
+          </router-link>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+              {{ stakeholderStore.currentUser.name.slice(0, 2).toUpperCase() }}
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white flex items-center gap-2">
+                <span>{{ stakeholderStore.currentUser.name }}</span>
+                <span class="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                  {{ stakeholderStore.currentUser.division }}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-400">{{ stakeholderStore.currentUser.role }} • {{ stakeholderStore.currentUser.email || 'Tanpa email' }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="text-[11px] text-slate-400">Ganti Akun:</label>
+            <select
+              :value="stakeholderStore.currentUser.id"
+              @change="(e) => stakeholderStore.setCurrentUser((e.target as HTMLSelectElement).value)"
+              class="bg-slate-900 border border-slate-800 text-xs rounded-xl px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-violet-500"
+            >
+              <option
+                v-for="s in stakeholderStore.stakeholders"
+                :key="s.id"
+                :value="s.id"
+              >
+                {{ s.name }} ({{ s.role }})
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Data & Storage Management -->
+      <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800/80 space-y-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center">
+            <Database class="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white">Manajemen Data & Cache Lokal</h3>
+            <p class="text-[11px] text-slate-400">Kelola atau bersihkan cache percakapan, kanban task, dan direktori stakeholder</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between space-y-2">
+            <div>
+              <h4 class="text-xs font-bold text-slate-200">Universal Chat Feed</h4>
+              <p class="text-[10px] text-slate-400 mt-0.5">{{ chatStore.messages.length }} pesan tersimpan</p>
+            </div>
+            <button
+              @click="chatStore.clearMessages()"
+              class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Trash2 class="h-3 w-3" />
+              <span>Bersihkan Pesan Feed</span>
+            </button>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between space-y-2">
+            <div>
+              <h4 class="text-xs font-bold text-slate-200">Kanban Tasks</h4>
+              <p class="text-[10px] text-slate-400 mt-0.5">{{ taskStore.tasks.length }} tugas tersimpan</p>
+            </div>
+            <button
+              @click="taskStore.clearTasks()"
+              class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Trash2 class="h-3 w-3" />
+              <span>Bersihkan Semua Task</span>
+            </button>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between space-y-2">
+            <div>
+              <h4 class="text-xs font-bold text-slate-200">Direktori Stakeholder</h4>
+              <p class="text-[10px] text-slate-400 mt-0.5">{{ stakeholderStore.stakeholders.length }} personil terdaftar</p>
+            </div>
+            <button
+              @click="stakeholderStore.resetToDefaults()"
+              class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-600 border border-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              <RefreshCw class="h-3 w-3" />
+              <span>Reset Tim ke Default</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

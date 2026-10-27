@@ -1,5 +1,5 @@
 use crate::ai::models::{
-    AIProviderConfig, TaskDecompositionItem, TaskDecompositionResult, TestConnectionResult,
+    AIProviderConfig, Stakeholder, TaskDecompositionItem, TaskDecompositionResult, TestConnectionResult,
 };
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde_json::{json, Value};
@@ -7,7 +7,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 const SYSTEM_DECOMPOSITION_PROMPT: &str = r#"Anda adalah AI Coordinator cerdas untuk sistem MedioChat (Team AI Bridge).
-Tugas Anda adalah membaca pesan atau instruksi kerja dan memecahnya menjadi daftar tugas terstruktur untuk tim software engineering.
+Tugas Anda adalah membaca pesan atau instruksi kerja dan memecahnya menjadi daftar tugas terstruktur untuk tim software engineering dan stakeholder perusahaan.
 
 Pilihlah salah satu divisi yang paling tepat untuk setiap tugas:
 - "backend" (API, database, server, otentikasi, logic bisnis)
@@ -28,7 +28,9 @@ KEMBALIKAN HANYA VALID JSON MURNI TANPA KOMENTAR DAN TANPA TEKS LAIN. Format per
       "divisi": "backend",
       "deskripsi": "Deskripsi aksi spesifik yang perlu dikerjakan",
       "prioritas": "tinggi",
-      "estimasi_jam": 4
+      "estimasi_jam": 4,
+      "assignee_name": "Nama Stakeholder atau null",
+      "assignee_role": "Role Stakeholder atau null"
     }
   ]
 }"#;
@@ -305,9 +307,29 @@ impl AIClient {
         &self,
         text: &str,
         provider: &AIProviderConfig,
+        stakeholders: Option<&[Stakeholder]>,
     ) -> Result<TaskDecompositionResult, String> {
+        let system_prompt = if let Some(team) = stakeholders {
+            if !team.is_empty() {
+                let mut dir = String::from("\n\nBerikut adalah direktori Stakeholder & Anggota Tim Perusahaan:\n");
+                for s in team {
+                    let skills_str = s.skills.as_deref().map(|sk| sk.join(", ")).unwrap_or_default();
+                    dir.push_str(&format!(
+                        "- Nama: \"{}\" | Role: \"{}\" | Divisi: \"{}\" | Keahlian: [{}]\n",
+                        s.name, s.role, s.division, skills_str
+                    ));
+                }
+                dir.push_str("\nINSTRUKSI PENUGASAN STAKEHOLDER:\nCocokkan setiap tugas dengan stakeholder di atas berdasarkan relevansi divisi dan keahliannya. Masukkan nama pada \"assignee_name\" dan jabatannya pada \"assignee_role\". Jika tidak ada yang cocok, gunakan null.\n");
+                format!("{}\n{}", SYSTEM_DECOMPOSITION_PROMPT, dir)
+            } else {
+                SYSTEM_DECOMPOSITION_PROMPT.to_string()
+            }
+        } else {
+            SYSTEM_DECOMPOSITION_PROMPT.to_string()
+        };
+
         let raw_output = self
-            .chat_completion(text, provider, Some(SYSTEM_DECOMPOSITION_PROMPT), true)
+            .chat_completion(text, provider, Some(&system_prompt), true)
             .await?;
 
         let clean_json = self.extract_json_str(&raw_output);
@@ -323,6 +345,8 @@ impl AIClient {
                         deskripsi: text.to_string(),
                         prioritas: "sedang".to_string(),
                         estimasi_jam: Some(2),
+                        assignee_name: None,
+                        assignee_role: None,
                     }],
                 })
             }

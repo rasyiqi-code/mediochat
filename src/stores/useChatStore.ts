@@ -8,13 +8,26 @@ export const useChatStore = defineStore('chat', () => {
   const saved = (() => {
     try {
       const raw = localStorage.getItem(STORAGE_CHAT_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return [];
+      const parsed: ChatMessage[] = JSON.parse(raw);
+      // Auto-purge any leftover legacy dummy messages
+      const cleaned = parsed.filter(
+        (m) =>
+          m.id !== 'm1' &&
+          m.id !== 'm2' &&
+          !m.senderName.includes('Andi (Backend') &&
+          !m.senderName.includes('Budi (Project')
+      );
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem(STORAGE_CHAT_KEY, JSON.stringify(cleaned));
+      }
+      return cleaned;
     } catch {
-      return null;
+      return [];
     }
   })();
 
-  const messages = ref<ChatMessage[]>(saved || []);
+  const messages = ref<ChatMessage[]>(saved);
 
   const isRecording = ref(false);
   const recordingDuration = ref(0);

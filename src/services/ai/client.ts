@@ -3,10 +3,11 @@ import type {
   TaskDecompositionResult,
   TestConnectionResult,
 } from './types';
+import type { Stakeholder } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
 
 const SYSTEM_DECOMPOSITION_PROMPT = `Anda adalah AI Coordinator cerdas untuk sistem MedioChat (Team AI Bridge).
-Tugas Anda adalah membaca pesan atau transkrip suara instruksi kerja dan memecahnya menjadi daftar tugas terstruktur untuk tim software engineering.
+Tugas Anda adalah membaca pesan atau transkrip suara instruksi kerja dan memecahnya menjadi daftar tugas terstruktur untuk tim software engineering dan stakeholder perusahaan.
 
 Pilihlah salah satu divisi yang paling tepat untuk setiap tugas:
 - "backend" (API, database, server, otentikasi, logic bisnis)
@@ -27,7 +28,9 @@ KEMBALIKAN HANYA VALID JSON MURNI TANPA KOMENTAR DAN TANPA TEXT LAIN. Format per
       "divisi": "backend",
       "deskripsi": "Deskripsi aksi spesifik yang perlu dikerjakan",
       "prioritas": "tinggi",
-      "estimasi_jam": 4
+      "estimasi_jam": 4,
+      "assignee_name": "Nama Stakeholder atau null",
+      "assignee_role": "Role Stakeholder atau null"
     }
   ]
 }`;
@@ -93,7 +96,8 @@ export class UniversalAIClient {
    */
   async decomposeTask(
     text: string,
-    provider: AIProviderConfig
+    provider: AIProviderConfig,
+    stakeholders?: Stakeholder[]
   ): Promise<TaskDecompositionResult> {
     // 1. If running inside Tauri native desktop, execute via Rust Core
     if (this.isTauri()) {
@@ -101,6 +105,7 @@ export class UniversalAIClient {
         return await invoke<TaskDecompositionResult>('ai_decompose_task', {
           provider,
           text,
+          stakeholders: stakeholders && stakeholders.length > 0 ? stakeholders : null,
         });
       } catch (err: any) {
         console.warn('Rust AI task decomposition failed, falling back to TS fetch:', err);
@@ -109,13 +114,24 @@ export class UniversalAIClient {
 
     // 2. TypeScript fallback
     try {
+      let dynamicPrompt = SYSTEM_DECOMPOSITION_PROMPT;
+      if (stakeholders && stakeholders.length > 0) {
+        let dir = '\n\nBerikut adalah direktori Stakeholder & Anggota Tim Perusahaan:\n';
+        for (const s of stakeholders) {
+          const skillsStr = s.skills && s.skills.length > 0 ? s.skills.join(', ') : '-';
+          dir += `- Nama: "${s.name}" | Role: "${s.role}" | Divisi: "${s.division}" | Keahlian: [${skillsStr}]\n`;
+        }
+        dir += '\nINSTRUKSI PENUGASAN STAKEHOLDER:\nCocokkan setiap tugas dengan stakeholder di atas berdasarkan relevansi divisi dan keahliannya. Masukkan nama pada "assignee_name" dan jabatannya pada "assignee_role". Jika tidak ada yang cocok, gunakan null.\n';
+        dynamicPrompt += dir;
+      }
+
       let rawResponse = '';
       if (provider.type === 'ollama') {
-        rawResponse = await this.callOllama(text, provider, SYSTEM_DECOMPOSITION_PROMPT, true);
+        rawResponse = await this.callOllama(text, provider, dynamicPrompt, true);
       } else if (provider.type === 'gemini') {
-        rawResponse = await this.callGemini(text, provider, SYSTEM_DECOMPOSITION_PROMPT, true);
+        rawResponse = await this.callGemini(text, provider, dynamicPrompt, true);
       } else {
-        rawResponse = await this.callOpenAICompatible(text, provider, SYSTEM_DECOMPOSITION_PROMPT, true);
+        rawResponse = await this.callOpenAICompatible(text, provider, dynamicPrompt, true);
       }
 
       const parsed = this.extractJSON<TaskDecompositionResult>(rawResponse);

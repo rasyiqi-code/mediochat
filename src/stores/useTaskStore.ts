@@ -8,15 +8,29 @@ export const useTaskStore = defineStore('task', () => {
   const saved = (() => {
     try {
       const raw = localStorage.getItem(STORAGE_TASK_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return [];
+      const parsed: TaskItem[] = JSON.parse(raw);
+      // Auto-purge any leftover legacy dummy tasks
+      const cleaned = parsed.filter(
+        (t) =>
+          !['t-1', 't-2', 't-3', 't-4'].includes(t.id) &&
+          t.senderName !== 'Budi (PM)' &&
+          t.senderName !== 'Andi (Lead)' &&
+          t.senderName !== 'Citra (Designer)'
+      );
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem(STORAGE_TASK_KEY, JSON.stringify(cleaned));
+      }
+      return cleaned;
     } catch {
-      return null;
+      return [];
     }
   })();
 
-  const tasks = ref<TaskItem[]>(saved || []);
+  const tasks = ref<TaskItem[]>(saved);
 
   const filterDivisi = ref<string>('all');
+  const filterAssignee = ref<string>('all');
   const searchQuery = ref<string>('');
 
   function persist() {
@@ -30,11 +44,13 @@ export const useTaskStore = defineStore('task', () => {
   const filteredTasks = computed(() => {
     return tasks.value.filter((t) => {
       const matchDivisi = filterDivisi.value === 'all' || t.divisi === filterDivisi.value;
+      const matchAssignee = filterAssignee.value === 'all' || t.assigneeName === filterAssignee.value;
       const matchSearch =
         !searchQuery.value ||
         t.deskripsi.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        t.senderName.toLowerCase().includes(searchQuery.value.toLowerCase());
-      return matchDivisi && matchSearch;
+        t.senderName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        (t.assigneeName && t.assigneeName.toLowerCase().includes(searchQuery.value.toLowerCase()));
+      return matchDivisi && matchAssignee && matchSearch;
     });
   });
 
@@ -46,6 +62,16 @@ export const useTaskStore = defineStore('task', () => {
     const task = tasks.value.find((t) => t.id === taskId);
     if (task) {
       task.status = newStatus;
+      persist();
+    }
+  }
+
+  function assignTask(taskId: string, assigneeName: string, assigneeRole?: string, assigneeId?: string) {
+    const task = tasks.value.find((t) => t.id === taskId);
+    if (task) {
+      task.assigneeName = assigneeName;
+      task.assigneeRole = assigneeRole;
+      task.assigneeId = assigneeId;
       persist();
     }
   }
@@ -68,12 +94,14 @@ export const useTaskStore = defineStore('task', () => {
   return {
     tasks,
     filterDivisi,
+    filterAssignee,
     searchQuery,
     filteredTasks,
     todoTasks,
     inProgressTasks,
     doneTasks,
     updateStatus,
+    assignTask,
     addTask,
     deleteTask,
     clearTasks,

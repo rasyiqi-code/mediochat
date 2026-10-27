@@ -22,11 +22,25 @@ pub struct AIProviderConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stakeholder {
+    pub id: String,
+    pub name: String,
+    pub role: String,
+    pub division: String,
+    pub email: Option<String>,
+    pub skills: Option<Vec<String>>,
+    pub is_current_user: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskDecompositionItem {
     pub divisi: String, // "backend" | "frontend" | "desain" | "qa" | "devops" | "general"
     pub deskripsi: String,
     pub prioritas: String, // "tinggi" | "sedang" | "rendah"
     pub estimasi_jam: Option<u32>,
+    pub assignee_name: Option<String>,
+    pub assignee_role: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

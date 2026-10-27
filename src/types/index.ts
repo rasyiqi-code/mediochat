@@ -2,6 +2,23 @@ export type Division = 'backend' | 'frontend' | 'desain' | 'qa' | 'devops' | 'ge
 export type TaskPriority = 'tinggi' | 'sedang' | 'rendah';
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 
+export interface Stakeholder {
+  id: string;
+  name: string;
+  role: string;
+  division: Division;
+  email?: string;
+  skills?: string[];
+  platformHandles?: {
+    telegram?: string;
+    slack?: string;
+    whatsapp?: string;
+    p2pNodeId?: string;
+  };
+  isCurrentUser?: boolean;
+  status?: 'online' | 'busy' | 'offline' | 'away';
+}
+
 export interface TaskItem {
   id: string;
   divisi: Division;
@@ -11,6 +28,9 @@ export interface TaskItem {
   deadline?: string | null;
   senderName: string;
   timestamp: string;
+  assigneeName?: string;
+  assigneeRole?: string;
+  assigneeId?: string;
 }
 
 export interface ChatMessage {
@@ -18,6 +38,8 @@ export interface ChatMessage {
   platform: 'local' | 'whatsapp' | 'telegram' | 'slack';
   senderName: string;
   senderId: string;
+  senderRole?: string;
+  senderDivision?: Division;
   isSelf: boolean;
   content: string;
   messageType: 'text' | 'voice_processed';

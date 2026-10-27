@@ -22,6 +22,8 @@ export interface TaskDecompositionItem {
   deskripsi: string;
   prioritas: 'tinggi' | 'sedang' | 'rendah';
   estimasi_jam?: number;
+  assignee_name?: string;
+  assignee_role?: string;
 }
 
 export interface TaskDecompositionResult {

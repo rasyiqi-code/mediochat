@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router';
 import { 
-  MessageSquare, Kanban, FolderKey, Wifi, Settings, 
+  MessageSquare, Kanban, Users, FolderKey, Wifi, Settings, 
   Mic, Radio, ShieldCheck
 } from 'lucide-vue-next';
 import { useChatStore } from '@/stores/useChatStore';
 import { useDeviceStore } from '@/stores/useDeviceStore';
 import { useSettingStore } from '@/stores/useSettingStore';
+import { useStakeholderStore } from '@/stores/useStakeholderStore';
 import { productionAudioRecorder } from '@/services/audio/recorder';
 import { useAICoordinator } from '@/composables/useAICoordinator';
 
@@ -15,11 +16,13 @@ const router = useRouter();
 const chatStore = useChatStore();
 const deviceStore = useDeviceStore();
 const settingStore = useSettingStore();
+const stakeholderStore = useStakeholderStore();
 const { processTaskDecomposition } = useAICoordinator();
 
 const navItems = [
   { path: '/chat', label: 'Chat Universal', icon: MessageSquare, badge: null },
   { path: '/board', label: 'Kanban Tugas', icon: Kanban, badge: 'AI' },
+  { path: '/team', label: 'Tim & Stakeholder', icon: Users, badge: `${stakeholderStore.stakeholders.length}` },
   { path: '/vault', label: 'Knowledge Vault', icon: FolderKey, badge: null },
   { path: '/devices', label: 'Radar P2P', icon: Wifi, badge: `${deviceStore.devices.filter(d => d.isOnline).length}` },
   { path: '/settings', label: 'Pengaturan', icon: Settings, badge: null },
@@ -31,7 +34,7 @@ async function togglePtt() {
     try {
       const res = await productionAudioRecorder.stop();
       if (res.transcript) {
-        await processTaskDecomposition(res.transcript, 'Saya (Voice PTT)', true);
+        await processTaskDecomposition(res.transcript, `${stakeholderStore.currentUser.name} (Voice PTT)`, true);
       }
     } catch (e) {
       console.warn('Voice PTT error:', e);
@@ -113,6 +116,32 @@ async function togglePtt() {
           </span>
         </button>
       </nav>
+
+      <!-- Active Profile Mini Widget -->
+      <div class="px-4 py-2 border-t border-slate-800/60 bg-slate-900/30">
+        <div
+          @click="router.push('/team')"
+          class="p-2 rounded-xl bg-slate-800/40 hover:bg-slate-800 border border-slate-700/60 hover:border-violet-500/40 flex items-center justify-between cursor-pointer transition-all group"
+          title="Klik untuk membuka direktori tim & ganti profil aktif"
+        >
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="h-7 w-7 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center flex-shrink-0 shadow-sm">
+              {{ stakeholderStore.currentUser.name.slice(0, 2).toUpperCase() }}
+            </div>
+            <div class="min-w-0">
+              <div class="text-[11px] font-semibold text-white truncate group-hover:text-violet-300 transition-colors">
+                {{ stakeholderStore.currentUser.name }}
+              </div>
+              <div class="text-[9px] text-slate-400 truncate leading-tight">
+                {{ stakeholderStore.currentUser.role }}
+              </div>
+            </div>
+          </div>
+          <span class="text-[9px] text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+            Ganti
+          </span>
+        </div>
+      </div>
 
       <!-- Bottom PTT Quick Action -->
       <div class="p-4 border-t border-slate-800/60 space-y-3">
